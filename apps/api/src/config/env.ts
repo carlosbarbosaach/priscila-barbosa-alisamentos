@@ -26,6 +26,27 @@ const envSchema = z.object({
     .string()
     .min(1)
     .default("0.0.0.0"),
+
+  GOOGLE_APPLICATION_CREDENTIALS: z
+    .string()
+    .min(
+      1,
+      "GOOGLE_APPLICATION_CREDENTIALS é obrigatório.",
+    ),
+
+  FIREBASE_PROJECT_ID: z
+    .string()
+    .min(
+      1,
+      "FIREBASE_PROJECT_ID é obrigatório.",
+    ),
+
+  FRONTEND_ORIGIN: z
+    .string()
+    .min(
+      1,
+      "FRONTEND_ORIGIN é obrigatório.",
+    ),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);
