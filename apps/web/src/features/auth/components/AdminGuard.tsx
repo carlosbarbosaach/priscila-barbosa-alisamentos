@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
-import { getAdminUser } from "../services/admin.api";
+import { getAdminUser } from "../../services/admin.api";
 import { useAuth } from "../hooks/useAuth";
 
 type AdminGuardProps = {

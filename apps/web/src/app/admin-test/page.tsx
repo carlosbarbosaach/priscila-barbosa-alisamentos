@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import {
     getAdminUser,
     type AdminMeResponse,
-} from "@/features/auth/services/admin.api";
+} from "@/features/services/admin.api";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 
 export default function AdminTestPage() {

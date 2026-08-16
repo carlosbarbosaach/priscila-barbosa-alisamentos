@@ -5,6 +5,7 @@ import { env } from "./config/env.js";
 import { adminRoutes } from "./modules/admin/admin.routes.js";
 import { authRoutes } from "./modules/auth/auth.routes.js";
 import { dashboardRoutes } from "./modules/dashboard/dashboard.routes.js";
+import { serviceRoutes } from "./modules/services/service.routes.js";
 
 export function buildApp() {
     const app = Fastify({
@@ -35,6 +36,10 @@ export function buildApp() {
 
     app.register(dashboardRoutes, {
         prefix: "/api/v1/admin/dashboard",
+    });
+
+    app.register(serviceRoutes, {
+        prefix: "/api/v1/admin/services",
     });
 
     return app;

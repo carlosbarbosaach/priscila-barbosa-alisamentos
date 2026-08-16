@@ -21,7 +21,7 @@ import {
 import {
     loginWithEmail,
     loginWithGoogle,
-} from "../services/auth.service";
+} from "../../services/auth.service";
 
 export function LoginForm() {
     const [googleLoading, setGoogleLoading] = useState(false);

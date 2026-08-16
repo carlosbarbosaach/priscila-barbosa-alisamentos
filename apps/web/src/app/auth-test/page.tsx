@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import {
   getAuthenticatedUser,
   type AuthMeResponse,
-} from "@/features/auth/services/auth.api";
+} from "@/features/services/auth.api";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 
 export default function AuthTestPage() {
