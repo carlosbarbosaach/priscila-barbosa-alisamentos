@@ -1,0 +1,63 @@
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+
+# Backend build
+dist/
+build/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Allow examples
+!.env.example
+
+# Firebase / service accounts
+*firebase-adminsdk*.json
+*service-account*.json
+serviceAccountKey.json
+firebase-service-account.json
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE / Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# TypeScript
+*.tsbuildinfo
+
+# Testing / Coverage
+coverage/
+
+# Temporary files
+tmp/
+temp/
+.cache/
+
+# Vercel
+.vercel/
+
+# Local certificates / secrets
+*.pem
+*.key
+*.crt

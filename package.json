@@ -1,0 +1,22 @@
+{
+  "name": "priscila-barbosa-alisamentos",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n WEB,API \"npm run dev:web\" \"npm run dev:api\"",
+    "dev:web": "npm run dev --workspace=apps/web",
+    "dev:api": "npm run dev --workspace=@priscila/api",
+    "build:web": "npm run build --workspace=apps/web",
+    "build:api": "npm run build --workspace=@priscila/api",
+    "typecheck:api": "npm run typecheck --workspace=@priscila/api",
+    "typecheck:shared": "npm run typecheck --workspace=@priscila/shared",
+    "lint:web": "npm run lint --workspace=apps/web"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.5"
+  }
+}
