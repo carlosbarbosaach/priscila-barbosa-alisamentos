@@ -47,6 +47,10 @@ const envSchema = z.object({
       1,
       "FRONTEND_ORIGIN é obrigatório.",
     ),
+
+  DEFAULT_SALON_ID: z
+    .string()
+    .min(1, "DEFAULT_SALON_ID é obrigatório."),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);

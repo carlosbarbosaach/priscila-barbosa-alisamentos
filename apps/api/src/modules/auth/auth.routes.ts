@@ -1,6 +1,9 @@
 import type { FastifyPluginAsync } from "fastify";
 
+import { UserService } from "../users/user.service.js";
 import { authenticate } from "../../shared/middleware/authenticate.middleware.js";
+
+const userService = new UserService();
 
 export const authRoutes: FastifyPluginAsync = async (app) => {
     app.get(
@@ -17,10 +20,18 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
                 });
             }
 
-            return {
-                uid: authUser.uid,
+            const user = await userService.ensureClientUser({
+                id: authUser.uid,
                 email: authUser.email ?? null,
-                emailVerified: authUser.email_verified,
+                displayName: authUser.name ?? null,
+                photoUrl: authUser.picture ?? null,
+            });
+
+            return {
+                user,
+                firebase: {
+                    emailVerified: authUser.email_verified,
+                },
             };
         },
     );

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { AuthProvider } from "@/features/auth/components/AuthProvider";
 
 import "./globals.css";
+import { QueryProvider } from "@/lib/query/QueryProvider";
 
 export const metadata: Metadata = {
   title: "Priscila Barbosa Alisamentos",
@@ -17,9 +18,11 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body>
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+        <QueryProvider>
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+        </QueryProvider>
       </body>
     </html>
   );

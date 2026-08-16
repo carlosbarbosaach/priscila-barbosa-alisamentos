@@ -3,20 +3,17 @@
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { getAuthenticatedUser } from "@/features/auth/services/auth.api";
+import {
+  getAuthenticatedUser,
+  type AuthMeResponse,
+} from "@/features/auth/services/auth.api";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-
-type ApiUser = {
-  uid: string;
-  email: string | null;
-  emailVerified: boolean;
-};
 
 export default function AuthTestPage() {
   const { user, loading } = useAuth();
 
-  const [apiUser, setApiUser] =
-    useState<ApiUser | null>(null);
+  const [apiResponse, setApiResponse] =
+    useState<AuthMeResponse | null>(null);
 
   const [apiError, setApiError] =
     useState<string | null>(null);
@@ -32,9 +29,9 @@ export default function AuthTestPage() {
       const response =
         await getAuthenticatedUser();
 
-      setApiUser(response);
+      setApiResponse(response);
     } catch (error) {
-      setApiUser(null);
+      setApiResponse(null);
 
       setApiError(
         error instanceof Error
@@ -79,23 +76,23 @@ export default function AuthTestPage() {
           </h1>
 
           <p className="mt-2 text-sm text-muted-foreground">
-            Dados lidos diretamente pelo Firebase Auth no frontend.
+            Firebase Auth + Fastify + Firestore.
           </p>
         </div>
 
         <div className="space-y-2">
           <div>
-            <strong>Nome:</strong>{" "}
+            <strong>Nome Firebase:</strong>{" "}
             {user.displayName ?? "Não informado"}
           </div>
 
           <div>
-            <strong>E-mail:</strong>{" "}
+            <strong>E-mail Firebase:</strong>{" "}
             {user.email ?? "Não informado"}
           </div>
 
           <div>
-            <strong>UID:</strong>{" "}
+            <strong>UID Firebase:</strong>{" "}
             <span className="break-all">
               {user.uid}
             </span>
@@ -115,32 +112,56 @@ export default function AuthTestPage() {
 
         {apiError && (
           <div className="rounded-lg border p-4 text-sm">
-            <strong>Erro da API:</strong>{" "}
+            <strong>Erro:</strong>{" "}
             {apiError}
           </div>
         )}
 
-        {apiUser && (
+        {apiResponse && (
           <div className="space-y-2 rounded-lg border p-4">
             <h2 className="font-semibold">
               Resposta do Fastify ✅
             </h2>
 
             <div>
-              <strong>UID:</strong>{" "}
+              <strong>ID:</strong>{" "}
               <span className="break-all">
-                {apiUser.uid}
+                {apiResponse.user.id}
               </span>
             </div>
 
             <div>
+              <strong>Nome:</strong>{" "}
+              {apiResponse.user.displayName ??
+                "Não informado"}
+            </div>
+
+            <div>
               <strong>E-mail:</strong>{" "}
-              {apiUser.email ?? "Não informado"}
+              {apiResponse.user.email ??
+                "Não informado"}
+            </div>
+
+            <div>
+              <strong>Perfil:</strong>{" "}
+              {apiResponse.user.role}
+            </div>
+
+            <div>
+              <strong>Salão:</strong>{" "}
+              {apiResponse.user.salonId}
+            </div>
+
+            <div>
+              <strong>Ativo:</strong>{" "}
+              {apiResponse.user.active
+                ? "Sim"
+                : "Não"}
             </div>
 
             <div>
               <strong>E-mail verificado:</strong>{" "}
-              {apiUser.emailVerified
+              {apiResponse.firebase.emailVerified
                 ? "Sim"
                 : "Não"}
             </div>
