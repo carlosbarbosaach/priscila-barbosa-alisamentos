@@ -13,7 +13,8 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { useCreateService } from "../../auth/hooks/useCreateService";
+import { useCreateService } from "../hooks/useCreateService";
+
 
 
 function formatPriceInput(digits: string) {

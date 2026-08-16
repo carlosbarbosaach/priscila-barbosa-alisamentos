@@ -9,8 +9,8 @@ import {
     updateService,
     type UpdateServiceInput,
 } from "../services.api";
-import { servicesQueryKey } from "../../auth/hooks/useServices";
 
+import { servicesQueryKey } from "./useServices";
 
 type UpdateServiceVariables = {
     serviceId: string;
@@ -25,7 +25,10 @@ export function useUpdateService() {
             serviceId,
             input,
         }: UpdateServiceVariables) =>
-            updateService(serviceId, input),
+            updateService(
+                serviceId,
+                input,
+            ),
 
         onSuccess: async () => {
             await queryClient.invalidateQueries({

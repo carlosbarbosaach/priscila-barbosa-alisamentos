@@ -6,7 +6,7 @@ import {
 } from "@tanstack/react-query";
 
 
-import { servicesQueryKey } from "./useServices";
+import { servicesQueryKey } from "../../services/hooks/useServices";
 import { updateServiceStatus } from "../../services/services.api";
 
 type UpdateServiceStatusVariables = {

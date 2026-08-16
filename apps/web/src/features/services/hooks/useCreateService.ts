@@ -7,7 +7,7 @@ import {
 
 
 
-import { servicesQueryKey } from "./useServices";
+import { servicesQueryKey } from "../../services/hooks/useServices";
 import { createService, CreateServiceInput } from "../../services/services.api";
 
 export function useCreateService() {

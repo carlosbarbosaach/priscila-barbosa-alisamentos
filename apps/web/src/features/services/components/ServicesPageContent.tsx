@@ -7,12 +7,10 @@ import {
 
 import { Button } from "@/components/ui/button";
 
-
-
 import { CreateServiceDialog } from "./CreateServiceDialog";
 import { EditServiceDialog } from "./EditServiceDialog";
-import { useServices } from "../../auth/hooks/useServices";
-import { ServiceStatusButton } from "../../auth/components/ServiceStatusButton";
+import { ServiceStatusButton } from "./ServiceStatusButton";
+import { useServices } from "@/features/services/hooks/useServices";
 
 function formatPrice(
     priceInCents: number,
@@ -108,9 +106,8 @@ export function ServicesPageContent() {
                             </h2>
 
                             <p className="mt-2 text-sm text-muted-foreground">
-                                Clique em &quot;Novo
-                                serviço&quot; para fazer o
-                                primeiro cadastro.
+                                Clique em &quot;Novo serviço&quot;
+                                para fazer o primeiro cadastro.
                             </p>
                         </div>
                     )}
