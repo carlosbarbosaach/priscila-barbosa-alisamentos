@@ -15,26 +15,23 @@ import {
 } from "next/navigation";
 
 import {
-    getAdminUser,
-} from "../../services/admin.api";
-
-import {
     useAuth,
 } from "../hooks/useAuth";
 
-type AdminGuardProps = {
+type ClientGuardProps = {
     children: ReactNode;
 };
 
-export function AdminGuard({
+export function ClientGuard({
     children,
-}: AdminGuardProps) {
+}: ClientGuardProps) {
     const router =
         useRouter();
 
     const {
         user,
         appUser,
+        emailVerified,
         loading: authLoading,
         sessionError,
     } = useAuth();
@@ -50,13 +47,6 @@ export function AdminGuard({
     ] = useState(true);
 
     useEffect(() => {
-        let active = true;
-
-        /*
-         * Enquanto Firebase + /auth/me
-         * ainda estão sendo carregados,
-         * não decidimos nada.
-         */
         if (authLoading) {
             return;
         }
@@ -65,14 +55,11 @@ export function AdminGuard({
         setCheckingAccess(true);
 
         /*
-         * Usuário não autenticado.
-         *
-         * Agora usamos a rota administrativa
-         * correta.
+         * Não autenticada.
          */
         if (!user) {
             router.replace(
-                "/admin/login",
+                "/entrar",
             );
 
             setCheckingAccess(false);
@@ -81,16 +68,16 @@ export function AdminGuard({
         }
 
         /*
-         * Firebase autenticou, mas não
-         * conseguimos montar a sessão da
-         * aplicação.
+         * Firebase autenticou,
+         * mas nossa sessão não
+         * conseguiu ser resolvida.
          */
         if (
             sessionError ||
             !appUser
         ) {
             router.replace(
-                "/admin/login",
+                "/entrar",
             );
 
             setCheckingAccess(false);
@@ -99,17 +86,28 @@ export function AdminGuard({
         }
 
         /*
-         * Usuário autenticado, porém CLIENT.
-         *
-         * Cliente nunca permanece dentro
-         * da área administrativa.
+         * ADMIN permanece exclusivamente
+         * na área administrativa.
          */
         if (
-            appUser.role !==
+            appUser.role ===
             USER_ROLES.ADMIN
         ) {
             router.replace(
-                "/cliente",
+                "/admin",
+            );
+
+            setCheckingAccess(false);
+
+            return;
+        }
+
+        if (
+            appUser.role !==
+            USER_ROLES.CLIENT
+        ) {
+            router.replace(
+                "/entrar",
             );
 
             setCheckingAccess(false);
@@ -118,52 +116,26 @@ export function AdminGuard({
         }
 
         /*
-         * O AuthProvider já informou que
-         * a role é ADMIN.
-         *
-         * Ainda mantemos a validação
-         * administrativa no backend.
+         * CLIENT com e-mail ainda
+         * não verificado não entra
+         * na área de agendamentos.
          */
-        async function validateAdminAccess() {
-            try {
-                await getAdminUser();
+        if (!emailVerified) {
+            router.replace(
+                "/verificar-email",
+            );
 
-                if (!active) {
-                    return;
-                }
+            setCheckingAccess(false);
 
-                setAuthorized(
-                    true,
-                );
-            } catch {
-                if (!active) {
-                    return;
-                }
-
-                setAuthorized(
-                    false,
-                );
-
-                router.replace(
-                    "/admin/login",
-                );
-            } finally {
-                if (active) {
-                    setCheckingAccess(
-                        false,
-                    );
-                }
-            }
+            return;
         }
 
-        void validateAdminAccess();
-
-        return () => {
-            active = false;
-        };
+        setAuthorized(true);
+        setCheckingAccess(false);
     }, [
         appUser,
         authLoading,
+        emailVerified,
         router,
         sessionError,
         user,

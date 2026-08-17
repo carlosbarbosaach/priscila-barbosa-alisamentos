@@ -1,3 +1,5 @@
+import type { Timestamp } from "firebase-admin/firestore";
+
 import { firestore } from "../../shared/firebase/firebase-firestore.js";
 
 import type {
@@ -40,12 +42,21 @@ export class ClientRepository {
     ): Promise<ClientEntity | null> {
         const snapshot = await firestore
             .collection(COLLECTION_NAME)
-            .where("salonId", "==", salonId)
-            .where("phone", "==", phone)
+            .where(
+                "salonId",
+                "==",
+                salonId,
+            )
+            .where(
+                "phone",
+                "==",
+                phone,
+            )
             .limit(1)
             .get();
 
-        const document = snapshot.docs[0];
+        const document =
+            snapshot.docs[0];
 
         if (!document) {
             return null;
@@ -57,13 +68,84 @@ export class ClientRepository {
         };
     }
 
+    async findByUserId(
+        salonId: string,
+        userId: string,
+    ): Promise<ClientEntity | null> {
+        const snapshot = await firestore
+            .collection(COLLECTION_NAME)
+            .where(
+                "salonId",
+                "==",
+                salonId,
+            )
+            .where(
+                "userId",
+                "==",
+                userId,
+            )
+            .limit(1)
+            .get();
+
+        const document =
+            snapshot.docs[0];
+
+        if (!document) {
+            return null;
+        }
+
+        return {
+            id: document.id,
+            ...(document.data() as ClientDocument),
+        };
+    }
+
+    async findAllByEmail(
+        salonId: string,
+        email: string,
+    ): Promise<ClientEntity[]> {
+        const normalizedEmail =
+            email
+                .trim()
+                .toLowerCase();
+
+        const snapshot = await firestore
+            .collection(COLLECTION_NAME)
+            .where(
+                "salonId",
+                "==",
+                salonId,
+            )
+            .where(
+                "email",
+                "==",
+                normalizedEmail,
+            )
+            .limit(2)
+            .get();
+
+        return snapshot.docs.map(
+            (document) => ({
+                id: document.id,
+                ...(document.data() as ClientDocument),
+            }),
+        );
+    }
+
     async findAllBySalon(
         salonId: string,
     ): Promise<ClientEntity[]> {
         const snapshot = await firestore
             .collection(COLLECTION_NAME)
-            .where("salonId", "==", salonId)
-            .orderBy("name", "asc")
+            .where(
+                "salonId",
+                "==",
+                salonId,
+            )
+            .orderBy(
+                "name",
+                "asc",
+            )
             .get();
 
         return snapshot.docs.map(
@@ -89,14 +171,15 @@ export class ClientRepository {
         clientId: string,
         data: Partial<ClientDocument>,
     ): Promise<void> {
-        const client = await this.findById(
-            salonId,
-            clientId,
-        );
+        const client =
+            await this.findById(
+                salonId,
+                clientId,
+            );
 
         if (!client) {
             throw new Error(
-                "Cliente não encontrado.",
+                "Cliente não encontrada.",
             );
         }
 
@@ -104,5 +187,21 @@ export class ClientRepository {
             .collection(COLLECTION_NAME)
             .doc(clientId)
             .update(data);
+    }
+
+    async linkUserId(
+        salonId: string,
+        clientId: string,
+        userId: string,
+        updatedAt: Timestamp,
+    ): Promise<void> {
+        await this.update(
+            salonId,
+            clientId,
+            {
+                userId,
+                updatedAt,
+            },
+        );
     }
 }
