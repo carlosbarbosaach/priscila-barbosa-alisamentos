@@ -10,7 +10,13 @@ import {
     type SaveClientServicePriceInput,
 } from "../client-service-prices.api";
 
-import { clientServicePricesQueryKey } from "./useClientServicePrices";
+import {
+    allClientServicePricesQueryKey,
+} from "./useAllClientServicePrices";
+
+import {
+    clientServicePricesQueryKey,
+} from "./useClientServicePrices";
 
 type SaveClientServicePriceVariables = {
     clientId: string;
@@ -38,12 +44,19 @@ export function useSaveClientServicePrice() {
             _price,
             variables,
         ) => {
-            await queryClient.invalidateQueries({
-                queryKey:
-                    clientServicePricesQueryKey(
-                        variables.clientId,
-                    ),
-            });
+            await Promise.all([
+                queryClient.invalidateQueries({
+                    queryKey:
+                        clientServicePricesQueryKey(
+                            variables.clientId,
+                        ),
+                }),
+
+                queryClient.invalidateQueries({
+                    queryKey:
+                        allClientServicePricesQueryKey,
+                }),
+            ]);
         },
     });
 }

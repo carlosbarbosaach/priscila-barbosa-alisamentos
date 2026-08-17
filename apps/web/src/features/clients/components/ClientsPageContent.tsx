@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 
 import { useAllClientServicePrices } from "@/features/client-service-prices/hooks/useAllClientServicePrices";
 import { useClients } from "@/features/clients/hooks/useClients";
+import { useServices } from "@/features/services/hooks/useServices";
 
 import { ClientsDesktopTable } from "./ClientsDesktopTable";
 import { ClientsMobileCards } from "./ClientsMobileCards";
@@ -76,9 +77,12 @@ export function ClientsPageContent() {
 
     const {
         data: clients = [],
-        isLoading,
-        isError,
-        refetch,
+        isLoading:
+        isLoadingClients,
+        isError:
+        isClientsError,
+        refetch:
+        refetchClients,
     } = useClients();
 
     const {
@@ -91,6 +95,16 @@ export function ClientsPageContent() {
         refetchSpecialPrices,
     } =
         useAllClientServicePrices();
+
+    const {
+        data: services = [],
+        isLoading:
+        isLoadingServices,
+        isError:
+        isServicesError,
+        refetch:
+        refetchServices,
+    } = useServices();
 
     const activeSpecialPrices =
         useMemo(
@@ -254,12 +268,14 @@ export function ClientsPageContent() {
     }
 
     const pageIsLoading =
-        isLoading ||
-        isLoadingSpecialPrices;
+        isLoadingClients ||
+        isLoadingSpecialPrices ||
+        isLoadingServices;
 
     const pageHasError =
-        isError ||
-        isSpecialPricesError;
+        isClientsError ||
+        isSpecialPricesError ||
+        isServicesError;
 
     return (
         <main className="w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-8 xl:px-10">
@@ -447,8 +463,9 @@ export function ClientsPageContent() {
                             variant="outline"
                             className="mt-4"
                             onClick={() => {
-                                void refetch();
+                                void refetchClients();
                                 void refetchSpecialPrices();
+                                void refetchServices();
                             }}
                         >
                             <RefreshCw className="mr-2 size-4" />
@@ -486,8 +503,11 @@ export function ClientsPageContent() {
                                 clients={
                                     filteredClients
                                 }
-                                clientsWithSpecialPrice={
-                                    clientsWithSpecialPrice
+                                specialPrices={
+                                    activeSpecialPrices
+                                }
+                                services={
+                                    services
                                 }
                             />
 
@@ -495,8 +515,11 @@ export function ClientsPageContent() {
                                 clients={
                                     filteredClients
                                 }
-                                clientsWithSpecialPrice={
-                                    clientsWithSpecialPrice
+                                specialPrices={
+                                    activeSpecialPrices
+                                }
+                                services={
+                                    services
                                 }
                             />
                         </>

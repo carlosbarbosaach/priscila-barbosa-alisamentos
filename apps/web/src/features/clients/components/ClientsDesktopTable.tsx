@@ -1,4 +1,8 @@
-import type { Client } from "@priscila/shared";
+import type {
+    Client,
+    ClientServicePrice,
+    Service,
+} from "@priscila/shared";
 
 import {
     BadgeDollarSign,
@@ -6,14 +10,20 @@ import {
 } from "lucide-react";
 
 import { ClientSpecialPriceDialog } from "@/features/client-service-prices/components/ClientSpecialPriceDialog";
+import { EditClientDialog } from "./EditClientDialog";
+import { ClientStatusButton } from "./ClientStatusButton";
 
 type ClientsDesktopTableProps = {
     clients: Client[];
-    clientsWithSpecialPrice: ReadonlySet<string>;
+    specialPrices: ClientServicePrice[];
+    services: Service[];
 };
 
-function formatPhone(phone: string) {
-    let digits = phone.replace(/\D/g, "");
+function formatPhone(
+    phone: string,
+) {
+    let digits =
+        phone.replace(/\D/g, "");
 
     if (
         digits.startsWith("55") &&
@@ -23,14 +33,20 @@ function formatPhone(phone: string) {
     }
 
     if (digits.length === 11) {
-        return `(${digits.slice(0, 2)}) ${digits.slice(
+        return `(${digits.slice(
+            0,
+            2,
+        )}) ${digits.slice(
             2,
             7,
         )}-${digits.slice(7)}`;
     }
 
     if (digits.length === 10) {
-        return `(${digits.slice(0, 2)}) ${digits.slice(
+        return `(${digits.slice(
+            0,
+            2,
+        )}) ${digits.slice(
             2,
             6,
         )}-${digits.slice(6)}`;
@@ -39,14 +55,29 @@ function formatPhone(phone: string) {
     return phone;
 }
 
+function formatPrice(
+    priceInCents: number,
+) {
+    return new Intl.NumberFormat(
+        "pt-BR",
+        {
+            style: "currency",
+            currency: "BRL",
+        },
+    ).format(
+        priceInCents / 100,
+    );
+}
+
 export function ClientsDesktopTable({
     clients,
-    clientsWithSpecialPrice,
+    specialPrices,
+    services,
 }: ClientsDesktopTableProps) {
     return (
         <div className="hidden overflow-hidden rounded-2xl border bg-white shadow-sm lg:block">
             <div className="overflow-x-auto">
-                <table className="w-full min-w-[900px]">
+                <table className="w-full min-w-[980px]">
                     <thead className="border-b bg-muted/40">
                         <tr className="text-left">
                             <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -76,84 +107,152 @@ export function ClientsDesktopTable({
                     </thead>
 
                     <tbody className="divide-y">
-                        {clients.map((client) => {
-                            const hasSpecialPrice =
-                                clientsWithSpecialPrice.has(
-                                    client.id,
-                                );
+                        {clients.map(
+                            (client) => {
+                                const clientPrices =
+                                    specialPrices.filter(
+                                        (
+                                            price,
+                                        ) =>
+                                            price.clientId ===
+                                            client.id &&
+                                            price.active,
+                                    );
 
-                            return (
-                                <tr
-                                    key={client.id}
-                                    className="transition-colors hover:bg-muted/20"
-                                >
-                                    <td className="px-6 py-5">
-                                        <div>
+                                return (
+                                    <tr
+                                        key={
+                                            client.id
+                                        }
+                                        className="align-top transition-colors hover:bg-muted/20"
+                                    >
+                                        <td className="px-6 py-5">
                                             <p className="font-semibold text-foreground">
-                                                {client.name}
+                                                {
+                                                    client.name
+                                                }
                                             </p>
 
                                             <p className="mt-1 text-xs text-muted-foreground">
-                                                Cliente do salão
+                                                Cliente
+                                                do salão
                                             </p>
-                                        </div>
-                                    </td>
+                                        </td>
 
-                                    <td className="px-6 py-5">
-                                        <div className="flex items-center gap-2">
-                                            <MessageCircle className="size-4 text-[#304229]" />
+                                        <td className="px-6 py-5">
+                                            <div className="flex items-center gap-2">
+                                                <MessageCircle className="size-4 shrink-0 text-[#304229]" />
 
-                                            <span className="text-sm">
-                                                {formatPhone(
-                                                    client.phone,
-                                                )}
+                                                <span className="whitespace-nowrap text-sm">
+                                                    {formatPhone(
+                                                        client.phone,
+                                                    )}
+                                                </span>
+                                            </div>
+                                        </td>
+
+                                        <td className="max-w-[220px] px-6 py-5">
+                                            <p className="truncate text-sm text-muted-foreground">
+                                                {client.email ??
+                                                    "Não informado"}
+                                            </p>
+                                        </td>
+
+                                        <td className="min-w-[210px] px-6 py-5">
+                                            {clientPrices.length >
+                                                0 ? (
+                                                <div className="space-y-3">
+                                                    {clientPrices.map(
+                                                        (
+                                                            price,
+                                                        ) => {
+                                                            const service =
+                                                                services.find(
+                                                                    (
+                                                                        item,
+                                                                    ) =>
+                                                                        item.id ===
+                                                                        price.serviceId,
+                                                                );
+
+                                                            return (
+                                                                <div
+                                                                    key={
+                                                                        price.id
+                                                                    }
+                                                                    className="flex items-start gap-2"
+                                                                >
+                                                                    <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-[#F5EBD2] text-[#8A6A2F]">
+                                                                        <BadgeDollarSign className="size-4" />
+                                                                    </div>
+
+                                                                    <div>
+                                                                        <p className="text-sm font-medium">
+                                                                            {service?.name ??
+                                                                                "Serviço"}
+                                                                        </p>
+
+                                                                        <p className="mt-0.5 text-sm font-semibold text-[#304229]">
+                                                                            {formatPrice(
+                                                                                price.priceCents,
+                                                                            )}
+                                                                        </p>
+
+                                                                        {service && (
+                                                                            <p className="mt-0.5 text-xs text-muted-foreground">
+                                                                                Padrão:{" "}
+                                                                                {formatPrice(
+                                                                                    service.defaultPriceCents,
+                                                                                )}
+                                                                            </p>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        },
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <span className="text-sm text-muted-foreground">
+                                                    Preço
+                                                    padrão
+                                                </span>
+                                            )}
+                                        </td>
+
+                                        <td className="px-6 py-5">
+                                            <span
+                                                className={
+                                                    client.active
+                                                        ? "inline-flex rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-800"
+                                                        : "inline-flex rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-600"
+                                                }
+                                            >
+                                                {client.active
+                                                    ? "Ativa"
+                                                    : "Inativa"}
                                             </span>
-                                        </div>
-                                    </td>
+                                        </td>
 
-                                    <td className="max-w-[240px] px-6 py-5">
-                                        <p className="truncate text-sm text-muted-foreground">
-                                            {client.email ??
-                                                "Não informado"}
-                                        </p>
-                                    </td>
+                                        <td className="px-6 py-5">
+                                            <div className="flex flex-wrap items-center justify-end gap-2">
+                                                <EditClientDialog
+                                                    client={client}
+                                                />
 
-                                    <td className="px-6 py-5">
-                                        {hasSpecialPrice ? (
-                                            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F5EBD2] px-2.5 py-1 text-xs font-medium text-[#8A6A2F]">
-                                                <BadgeDollarSign className="size-3.5" />
+                                                <ClientSpecialPriceDialog
+                                                    client={client}
+                                                />
 
-                                                Especial
-                                            </span>
-                                        ) : (
-                                            <span className="text-sm text-muted-foreground">
-                                                Padrão
-                                            </span>
-                                        )}
-                                    </td>
-
-                                    <td className="px-6 py-5">
-                                        <span
-                                            className={
-                                                client.active
-                                                    ? "inline-flex rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-800"
-                                                    : "inline-flex rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-600"
-                                            }
-                                        >
-                                            {client.active
-                                                ? "Ativa"
-                                                : "Inativa"}
-                                        </span>
-                                    </td>
-
-                                    <td className="px-6 py-5 text-right">
-                                        <ClientSpecialPriceDialog
-                                            client={client}
-                                        />
-                                    </td>
-                                </tr>
-                            );
-                        })}
+                                                <ClientStatusButton
+                                                    client={client}
+                                                />
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            },
+                        )}
                     </tbody>
                 </table>
             </div>
