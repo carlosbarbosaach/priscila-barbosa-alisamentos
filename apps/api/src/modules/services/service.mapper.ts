@@ -1,24 +1,57 @@
-import type { Service } from "@priscila/shared";
+import type {
+  Service,
+} from "@priscila/shared";
 
-import type { ServiceEntity } from "./service.types.js";
+import type {
+  ServiceEntity,
+} from "./service.types.js";
 
 export function mapServiceEntityToService(
-    service: ServiceEntity,
+  service: ServiceEntity,
 ): Service {
-    return {
-        id: service.id,
-        salonId: service.salonId,
+  return {
+    id:
+      service.id,
 
-        name: service.name,
-        description: service.description,
-        category: service.category,
+    salonId:
+      service.salonId,
 
-        durationMinutes: service.durationMinutes,
-        defaultPriceCents: service.defaultPriceCents,
+    name:
+      service.name,
 
-        active: service.active,
+    description:
+      service.description,
 
-        createdAt: service.createdAt.toDate().toISOString(),
-        updatedAt: service.updatedAt.toDate().toISOString(),
-    };
+    category:
+      service.category,
+
+    durationMinutes:
+      service.durationMinutes,
+
+    defaultPriceCents:
+      service.defaultPriceCents,
+
+    /*
+     * Serviços antigos não possuem
+     * phases no Firestore.
+     *
+     * Para o restante da aplicação,
+     * sempre devolvemos array.
+     */
+    phases:
+      service.phases ?? [],
+
+    active:
+      service.active,
+
+    createdAt:
+      service.createdAt
+        .toDate()
+        .toISOString(),
+
+    updatedAt:
+      service.updatedAt
+        .toDate()
+        .toISOString(),
+  };
 }

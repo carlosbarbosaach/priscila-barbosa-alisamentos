@@ -1,0 +1,381 @@
+import type {
+  FastifyReply,
+  FastifyRequest,
+} from "fastify";
+
+import {
+  AdminAppointmentConsistencyError,
+  AdminAppointmentDecisionService,
+  AdminAppointmentInvalidStatusError,
+  AdminAppointmentNotFoundError,
+} from "./admin-appointment-decision.service.js";
+
+import {
+  AdminAppointmentQueryService,
+} from "./admin-appointment-query.service.js";
+
+import {
+  adminAppointmentListQuerySchema,
+  adminAppointmentParamsSchema,
+  rejectAdminAppointmentSchema,
+} from "./admin-appointment.schema.js";
+
+import {
+  mapAppointmentEntityToAppointment,
+} from "./appointment.mapper.js";
+
+const adminAppointmentQueryService =
+  new AdminAppointmentQueryService();
+
+const adminAppointmentDecisionService =
+  new AdminAppointmentDecisionService();
+
+function getSalonId(
+  request: FastifyRequest,
+): string | null {
+  return (
+    request.appUser?.salonId ??
+    null
+  );
+}
+
+/*
+ * GET /api/v1/admin/appointments
+ *
+ * Query:
+ *
+ * ?dateKey=2026-08-20
+ */
+export async function listAdminAppointmentsController(
+  request: FastifyRequest,
+  reply: FastifyReply,
+) {
+  const salonId =
+    getSalonId(
+      request,
+    );
+
+  if (!salonId) {
+    return reply
+      .status(403)
+      .send({
+        message:
+          "Salão do usuário não identificado.",
+      });
+  }
+
+  const parsedQuery =
+    adminAppointmentListQuerySchema.safeParse(
+      request.query,
+    );
+
+  if (!parsedQuery.success) {
+    return reply
+      .status(400)
+      .send({
+        message:
+          "Dados da consulta da agenda inválidos.",
+
+        issues:
+          parsedQuery.error.issues,
+      });
+  }
+
+  try {
+    const result =
+      await adminAppointmentQueryService
+        .findByDate({
+          salonId,
+
+          dateKey:
+            parsedQuery.data.dateKey,
+        });
+
+    return reply.send({
+      dateKey:
+        result.dateKey,
+
+      appointments:
+        result.appointments,
+    });
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      (
+        error.message ===
+          "Data inválida." ||
+        error.message ===
+          "Data inválida. Utilize o formato YYYY-MM-DD."
+      )
+    ) {
+      return reply
+        .status(400)
+        .send({
+          message:
+            error.message,
+        });
+    }
+
+    throw error;
+  }
+}
+
+/*
+ * PATCH
+ * /api/v1/admin/appointments/:appointmentId/confirm
+ *
+ * PENDING_APPROVAL
+ * ↓
+ * CONFIRMED
+ */
+export async function confirmAdminAppointmentController(
+  request: FastifyRequest,
+  reply: FastifyReply,
+) {
+  const salonId =
+    getSalonId(
+      request,
+    );
+
+  if (!salonId) {
+    return reply
+      .status(403)
+      .send({
+        message:
+          "Salão do usuário não identificado.",
+      });
+  }
+
+  const parsedParams =
+    adminAppointmentParamsSchema.safeParse(
+      request.params,
+    );
+
+  if (!parsedParams.success) {
+    return reply
+      .status(400)
+      .send({
+        message:
+          "Parâmetros do agendamento inválidos.",
+
+        issues:
+          parsedParams.error.issues,
+      });
+  }
+
+  try {
+    const appointmentEntity =
+      await adminAppointmentDecisionService
+        .confirm({
+          salonId,
+
+          appointmentId:
+            parsedParams.data.appointmentId,
+        });
+
+    const appointment =
+      mapAppointmentEntityToAppointment(
+        appointmentEntity,
+      );
+
+    return reply.send({
+      appointment,
+    });
+  } catch (error) {
+    return handleAppointmentDecisionError(
+      error,
+      reply,
+    );
+  }
+}
+
+/*
+ * PATCH
+ * /api/v1/admin/appointments/:appointmentId/reject
+ *
+ * Body:
+ *
+ * {
+ *   "rejectionReason":
+ *     "Não consigo atender neste horário."
+ * }
+ *
+ * PENDING_APPROVAL
+ * ↓
+ * REJECTED
+ */
+export async function rejectAdminAppointmentController(
+  request: FastifyRequest,
+  reply: FastifyReply,
+) {
+  const salonId =
+    getSalonId(
+      request,
+    );
+
+  if (!salonId) {
+    return reply
+      .status(403)
+      .send({
+        message:
+          "Salão do usuário não identificado.",
+      });
+  }
+
+  const parsedParams =
+    adminAppointmentParamsSchema.safeParse(
+      request.params,
+    );
+
+  if (!parsedParams.success) {
+    return reply
+      .status(400)
+      .send({
+        message:
+          "Parâmetros do agendamento inválidos.",
+
+        issues:
+          parsedParams.error.issues,
+      });
+  }
+
+  const parsedBody =
+    rejectAdminAppointmentSchema.safeParse(
+      request.body,
+    );
+
+  if (!parsedBody.success) {
+    return reply
+      .status(400)
+      .send({
+        message:
+          "Dados da recusa inválidos.",
+
+        issues:
+          parsedBody.error.issues,
+      });
+  }
+
+  try {
+    const appointmentEntity =
+      await adminAppointmentDecisionService
+        .reject({
+          salonId,
+
+          appointmentId:
+            parsedParams.data.appointmentId,
+
+          rejectionReason:
+            parsedBody.data.rejectionReason,
+        });
+
+    const appointment =
+      mapAppointmentEntityToAppointment(
+        appointmentEntity,
+      );
+
+    return reply.send({
+      appointment,
+    });
+  } catch (error) {
+    return handleAppointmentDecisionError(
+      error,
+      reply,
+    );
+  }
+}
+
+/*
+ * Tratamento centralizado dos erros
+ * de decisão.
+ *
+ * Evita duplicar a mesma lógica
+ * nos Controllers de confirmar e
+ * recusar.
+ */
+function handleAppointmentDecisionError(
+  error: unknown,
+  reply: FastifyReply,
+) {
+  /*
+   * Appointment não existe ou
+   * pertence a outro salão.
+   */
+  if (
+    error instanceof
+    AdminAppointmentNotFoundError
+  ) {
+    return reply
+      .status(404)
+      .send({
+        message:
+          error.message,
+      });
+  }
+
+  /*
+   * Appointment já foi decidido.
+   *
+   * Exemplo:
+   *
+   * CONFIRMED → confirmar novamente
+   * REJECTED  → confirmar
+   */
+  if (
+    error instanceof
+    AdminAppointmentInvalidStatusError
+  ) {
+    return reply
+      .status(409)
+      .send({
+        message:
+          error.message,
+      });
+  }
+
+  /*
+   * Alguma mudança inesperada ocorreu
+   * enquanto a operação estava sendo
+   * processada.
+   */
+  if (
+    error instanceof
+    AdminAppointmentConsistencyError
+  ) {
+    return reply
+      .status(409)
+      .send({
+        message:
+          error.message,
+      });
+  }
+
+  /*
+   * Validação defensiva do Service.
+   *
+   * Normalmente o Zod já impedirá
+   * esses casos antes.
+   */
+  if (
+    error instanceof Error &&
+    (
+      error.message ===
+        "Informe um motivo para a recusa." ||
+      error.message ===
+        "O motivo da recusa deve possuir no máximo 500 caracteres."
+    )
+  ) {
+    return reply
+      .status(400)
+      .send({
+        message:
+          error.message,
+      });
+  }
+
+  /*
+   * Erro inesperado continua indo
+   * para o error handler do Fastify.
+   */
+  throw error;
+}

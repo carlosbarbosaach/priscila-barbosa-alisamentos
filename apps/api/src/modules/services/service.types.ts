@@ -1,21 +1,46 @@
-import type { Timestamp } from "firebase-admin/firestore";
+import type {
+  Timestamp,
+} from "firebase-admin/firestore";
+
+export type ServicePhaseDocument = {
+  id: string;
+
+  name: string;
+
+  durationMinutes: number;
+
+  occupiesProfessional: boolean;
+
+  order: number;
+};
 
 export type ServiceDocument = {
-    salonId: string;
+  salonId: string;
 
-    name: string;
-    description: string | null;
-    category: string;
+  name: string;
+  description: string | null;
+  category: string;
 
-    durationMinutes: number;
-    defaultPriceCents: number;
+  durationMinutes: number;
+  defaultPriceCents: number;
 
-    active: boolean;
+  /*
+   * Opcional por enquanto para manter
+   * compatibilidade com serviços que
+   * já existem no Firestore.
+   *
+   * Documentos antigos não possuem
+   * esse campo ainda.
+   */
+  phases?: ServicePhaseDocument[];
 
-    createdAt: Timestamp;
-    updatedAt: Timestamp;
+  active: boolean;
+
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 };
 
-export type ServiceEntity = ServiceDocument & {
+export type ServiceEntity =
+  ServiceDocument & {
     id: string;
-};
+  };

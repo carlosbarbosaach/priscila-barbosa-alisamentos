@@ -1,21 +1,27 @@
 import type {
-    ReactNode,
+  ReactNode,
 } from "react";
 
 import {
-    ClientGuard,
+  ClientGuard,
 } from "@/features/auth/components/ClientGuard";
 
+import {
+  ClientShell,
+} from "@/features/clients/components/ClientShell";
+
 type ClientLayoutProps = {
-    children: ReactNode;
+  children: ReactNode;
 };
 
 export default function ClientLayout({
-    children,
+  children,
 }: ClientLayoutProps) {
-    return (
-        <ClientGuard>
-            {children}
-        </ClientGuard>
-    );
+  return (
+    <ClientGuard>
+      <ClientShell>
+        {children}
+      </ClientShell>
+    </ClientGuard>
+  );
 }
