@@ -31,20 +31,24 @@ export function ClientGuard({
     const {
         user,
         appUser,
+        clientLink,
         emailVerified,
         loading: authLoading,
         sessionError,
-    } = useAuth();
+    } =
+        useAuth();
 
     const [
         authorized,
         setAuthorized,
-    ] = useState(false);
+    ] =
+        useState(false);
 
     const [
         checkingAccess,
         setCheckingAccess,
-    ] = useState(true);
+    ] =
+        useState(true);
 
     useEffect(() => {
         if (authLoading) {
@@ -54,24 +58,18 @@ export function ClientGuard({
         setAuthorized(false);
         setCheckingAccess(true);
 
-        /*
-         * Não autenticada.
-         */
         if (!user) {
             router.replace(
                 "/entrar",
             );
 
-            setCheckingAccess(false);
+            setCheckingAccess(
+                false,
+            );
 
             return;
         }
 
-        /*
-         * Firebase autenticou,
-         * mas nossa sessão não
-         * conseguiu ser resolvida.
-         */
         if (
             sessionError ||
             !appUser
@@ -80,15 +78,13 @@ export function ClientGuard({
                 "/entrar",
             );
 
-            setCheckingAccess(false);
+            setCheckingAccess(
+                false,
+            );
 
             return;
         }
 
-        /*
-         * ADMIN permanece exclusivamente
-         * na área administrativa.
-         */
         if (
             appUser.role ===
             USER_ROLES.ADMIN
@@ -97,7 +93,9 @@ export function ClientGuard({
                 "/admin",
             );
 
-            setCheckingAccess(false);
+            setCheckingAccess(
+                false,
+            );
 
             return;
         }
@@ -110,31 +108,79 @@ export function ClientGuard({
                 "/entrar",
             );
 
-            setCheckingAccess(false);
+            setCheckingAccess(
+                false,
+            );
 
             return;
         }
 
-        /*
-         * CLIENT com e-mail ainda
-         * não verificado não entra
-         * na área de agendamentos.
-         */
         if (!emailVerified) {
             router.replace(
                 "/verificar-email",
             );
 
-            setCheckingAccess(false);
+            setCheckingAccess(
+                false,
+            );
 
             return;
         }
 
+        /*
+         * Conta autenticada e verificada,
+         * mas ainda não existe cliente
+         * correspondente no salão.
+         */
+        if (
+            clientLink?.status ===
+            "NO_MATCH"
+        ) {
+            router.replace(
+                "/completar-cadastro",
+            );
+
+            setCheckingAccess(
+                false,
+            );
+
+            return;
+        }
+
+        /*
+         * Cliente vinculada corretamente.
+         */
+        if (
+            clientLink?.status ===
+            "LINKED" ||
+            clientLink?.status ===
+            "ALREADY_LINKED"
+        ) {
+            setAuthorized(
+                true,
+            );
+
+            setCheckingAccess(
+                false,
+            );
+
+            return;
+        }
+
+        /*
+         * Outros estados especiais
+         * continuam visíveis na área
+         * temporária para diagnóstico.
+         *
+         * Quando criarmos a UX final,
+         * teremos telas específicas.
+         */
         setAuthorized(true);
         setCheckingAccess(false);
     }, [
         appUser,
         authLoading,
+        clientLink,
         emailVerified,
         router,
         sessionError,

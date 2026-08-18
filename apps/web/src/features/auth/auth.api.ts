@@ -3,7 +3,9 @@ import type {
     Client,
 } from "@priscila/shared";
 
-import { apiFetch } from "@/services/api/api-client";
+import {
+    apiFetch,
+} from "@/services/api/api-client";
 
 export type ClientAuthLinkStatus =
     | "ALREADY_LINKED"
@@ -16,24 +18,57 @@ export type ClientAuthLinkStatus =
     | "CLIENT_ALREADY_LINKED";
 
 export type ClientAuthLink = {
-    status: ClientAuthLinkStatus;
-    client: Client | null;
+    status:
+        ClientAuthLinkStatus;
+
+    client:
+        Client | null;
 };
 
 export type AuthMeResponse = {
-    user: AppUser;
+    user:
+        AppUser;
 
     clientLink:
-    | ClientAuthLink
-    | null;
+        ClientAuthLink | null;
 
     firebase: {
-        emailVerified: boolean;
+        emailVerified:
+            boolean;
     };
+};
+
+export type CompleteClientProfileInput = {
+    name: string;
+    phone: string;
+};
+
+type CompleteClientProfileResponse = {
+    client: Client;
 };
 
 export async function getAuthMe(): Promise<AuthMeResponse> {
     return apiFetch<AuthMeResponse>(
         "/auth/me",
     );
+}
+
+export async function completeClientProfile(
+    input: CompleteClientProfileInput,
+): Promise<Client> {
+    const response =
+        await apiFetch<CompleteClientProfileResponse>(
+            "/auth/complete-client-profile",
+            {
+                method:
+                    "POST",
+
+                body:
+                    JSON.stringify(
+                        input,
+                    ),
+            },
+        );
+
+    return response.client;
 }
