@@ -40,11 +40,8 @@ function getSalonId(
 }
 
 /*
- * GET /api/v1/admin/appointments
- *
- * Query:
- *
- * ?dateKey=2026-08-20
+ * GET
+ * /api/v1/admin/appointments
  */
 export async function listAdminAppointmentsController(
   request: FastifyRequest,
@@ -77,7 +74,8 @@ export async function listAdminAppointmentsController(
           "Dados da consulta da agenda inválidos.",
 
         issues:
-          parsedQuery.error.issues,
+          parsedQuery.error
+            .issues,
       });
   }
 
@@ -88,7 +86,8 @@ export async function listAdminAppointmentsController(
           salonId,
 
           dateKey:
-            parsedQuery.data.dateKey,
+            parsedQuery.data
+              .dateKey,
         });
 
     return reply.send({
@@ -121,9 +120,6 @@ export async function listAdminAppointmentsController(
 }
 
 /*
- * PATCH
- * /api/v1/admin/appointments/:appointmentId/confirm
- *
  * PENDING_APPROVAL
  * ↓
  * CONFIRMED
@@ -132,74 +128,46 @@ export async function confirmAdminAppointmentController(
   request: FastifyRequest,
   reply: FastifyReply,
 ) {
-  const salonId =
-    getSalonId(
-      request,
-    );
-
-  if (!salonId) {
-    return reply
-      .status(403)
-      .send({
-        message:
-          "Salão do usuário não identificado.",
-      });
-  }
-
-  const parsedParams =
-    adminAppointmentParamsSchema.safeParse(
-      request.params,
-    );
-
-  if (!parsedParams.success) {
-    return reply
-      .status(400)
-      .send({
-        message:
-          "Parâmetros do agendamento inválidos.",
-
-        issues:
-          parsedParams.error.issues,
-      });
-  }
-
-  try {
-    const appointmentEntity =
-      await adminAppointmentDecisionService
-        .confirm({
-          salonId,
-
-          appointmentId:
-            parsedParams.data.appointmentId,
-        });
-
-    const appointment =
-      mapAppointmentEntityToAppointment(
-        appointmentEntity,
-      );
-
-    return reply.send({
-      appointment,
-    });
-  } catch (error) {
-    return handleAppointmentDecisionError(
-      error,
-      reply,
-    );
-  }
+  return executeAppointmentAction(
+    request,
+    reply,
+    "confirm",
+  );
 }
 
 /*
- * PATCH
- * /api/v1/admin/appointments/:appointmentId/reject
- *
- * Body:
- *
- * {
- *   "rejectionReason":
- *     "Não consigo atender neste horário."
- * }
- *
+ * CONFIRMED
+ * ↓
+ * IN_PROGRESS
+ */
+export async function startAdminAppointmentController(
+  request: FastifyRequest,
+  reply: FastifyReply,
+) {
+  return executeAppointmentAction(
+    request,
+    reply,
+    "start",
+  );
+}
+
+/*
+ * IN_PROGRESS
+ * ↓
+ * COMPLETED
+ */
+export async function completeAdminAppointmentController(
+  request: FastifyRequest,
+  reply: FastifyReply,
+) {
+  return executeAppointmentAction(
+    request,
+    reply,
+    "complete",
+  );
+}
+
+/*
  * PENDING_APPROVAL
  * ↓
  * REJECTED
@@ -235,7 +203,8 @@ export async function rejectAdminAppointmentController(
           "Parâmetros do agendamento inválidos.",
 
         issues:
-          parsedParams.error.issues,
+          parsedParams.error
+            .issues,
       });
   }
 
@@ -252,7 +221,8 @@ export async function rejectAdminAppointmentController(
           "Dados da recusa inválidos.",
 
         issues:
-          parsedBody.error.issues,
+          parsedBody.error
+            .issues,
       });
   }
 
@@ -263,10 +233,12 @@ export async function rejectAdminAppointmentController(
           salonId,
 
           appointmentId:
-            parsedParams.data.appointmentId,
+            parsedParams.data
+              .appointmentId,
 
           rejectionReason:
-            parsedBody.data.rejectionReason,
+            parsedBody.data
+              .rejectionReason,
         });
 
     const appointment =
@@ -278,29 +250,116 @@ export async function rejectAdminAppointmentController(
       appointment,
     });
   } catch (error) {
-    return handleAppointmentDecisionError(
+    return handleAdminAppointmentError(
       error,
       reply,
     );
   }
 }
 
+type AppointmentAction =
+  | "confirm"
+  | "start"
+  | "complete";
+
 /*
- * Tratamento centralizado dos erros
- * de decisão.
- *
- * Evita duplicar a mesma lógica
- * nos Controllers de confirmar e
- * recusar.
+ * Controller compartilhado pelas
+ * ações sem body.
  */
-function handleAppointmentDecisionError(
+async function executeAppointmentAction(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  action: AppointmentAction,
+) {
+  const salonId =
+    getSalonId(
+      request,
+    );
+
+  if (!salonId) {
+    return reply
+      .status(403)
+      .send({
+        message:
+          "Salão do usuário não identificado.",
+      });
+  }
+
+  const parsedParams =
+    adminAppointmentParamsSchema.safeParse(
+      request.params,
+    );
+
+  if (!parsedParams.success) {
+    return reply
+      .status(400)
+      .send({
+        message:
+          "Parâmetros do agendamento inválidos.",
+
+        issues:
+          parsedParams.error
+            .issues,
+      });
+  }
+
+  const input = {
+    salonId,
+
+    appointmentId:
+      parsedParams.data
+        .appointmentId,
+  };
+
+  try {
+    let appointmentEntity;
+
+    if (
+      action ===
+      "confirm"
+    ) {
+      appointmentEntity =
+        await adminAppointmentDecisionService
+          .confirm(
+            input,
+          );
+    } else if (
+      action ===
+      "start"
+    ) {
+      appointmentEntity =
+        await adminAppointmentDecisionService
+          .start(
+            input,
+          );
+    } else {
+      appointmentEntity =
+        await adminAppointmentDecisionService
+          .complete(
+            input,
+          );
+    }
+
+    const appointment =
+      mapAppointmentEntityToAppointment(
+        appointmentEntity,
+      );
+
+    return reply.send({
+      appointment,
+    });
+  } catch (error) {
+    return handleAdminAppointmentError(
+      error,
+      reply,
+    );
+  }
+}
+
+function handleAdminAppointmentError(
   error: unknown,
   reply: FastifyReply,
 ) {
-  /*
-   * Appointment não existe ou
-   * pertence a outro salão.
-   */
   if (
     error instanceof
     AdminAppointmentNotFoundError
@@ -313,14 +372,6 @@ function handleAppointmentDecisionError(
       });
   }
 
-  /*
-   * Appointment já foi decidido.
-   *
-   * Exemplo:
-   *
-   * CONFIRMED → confirmar novamente
-   * REJECTED  → confirmar
-   */
   if (
     error instanceof
     AdminAppointmentInvalidStatusError
@@ -333,11 +384,6 @@ function handleAppointmentDecisionError(
       });
   }
 
-  /*
-   * Alguma mudança inesperada ocorreu
-   * enquanto a operação estava sendo
-   * processada.
-   */
   if (
     error instanceof
     AdminAppointmentConsistencyError
@@ -350,12 +396,6 @@ function handleAppointmentDecisionError(
       });
   }
 
-  /*
-   * Validação defensiva do Service.
-   *
-   * Normalmente o Zod já impedirá
-   * esses casos antes.
-   */
   if (
     error instanceof Error &&
     (
@@ -373,9 +413,5 @@ function handleAppointmentDecisionError(
       });
   }
 
-  /*
-   * Erro inesperado continua indo
-   * para o error handler do Fastify.
-   */
   throw error;
 }

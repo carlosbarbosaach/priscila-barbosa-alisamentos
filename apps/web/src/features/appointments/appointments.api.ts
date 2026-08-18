@@ -87,7 +87,8 @@ export type GetAppointmentAvailabilityInput = {
 };
 
 export async function getAppointmentAvailability(
-  input: GetAppointmentAvailabilityInput,
+  input:
+    GetAppointmentAvailabilityInput,
 ): Promise<AppointmentAvailability> {
   const params =
     new URLSearchParams({
@@ -125,7 +126,8 @@ type AppointmentResponse = {
 };
 
 export async function createAppointment(
-  input: CreateAppointmentInput,
+  input:
+    CreateAppointmentInput,
 ): Promise<Appointment> {
   const response =
     await apiFetch<AppointmentResponse>(
@@ -177,6 +179,10 @@ export async function getAdminAppointments(
  * ==============================
  * ADMIN — CONFIRMAR
  * ==============================
+ *
+ * PENDING_APPROVAL
+ * ↓
+ * CONFIRMED
  */
 
 export async function confirmAppointment(
@@ -198,6 +204,10 @@ export async function confirmAppointment(
  * ==============================
  * ADMIN — RECUSAR
  * ==============================
+ *
+ * PENDING_APPROVAL
+ * ↓
+ * REJECTED
  */
 
 export type RejectAppointmentInput = {
@@ -207,7 +217,8 @@ export type RejectAppointmentInput = {
 };
 
 export async function rejectAppointment(
-  input: RejectAppointmentInput,
+  input:
+    RejectAppointmentInput,
 ): Promise<Appointment> {
   const response =
     await apiFetch<AppointmentResponse>(
@@ -221,6 +232,56 @@ export async function rejectAppointment(
             rejectionReason:
               input.rejectionReason,
           }),
+      },
+    );
+
+  return response.appointment;
+}
+
+/*
+ * ==============================
+ * ADMIN — INICIAR ATENDIMENTO
+ * ==============================
+ *
+ * CONFIRMED
+ * ↓
+ * IN_PROGRESS
+ */
+
+export async function startAppointment(
+  appointmentId: string,
+): Promise<Appointment> {
+  const response =
+    await apiFetch<AppointmentResponse>(
+      `/admin/appointments/${appointmentId}/start`,
+      {
+        method:
+          "PATCH",
+      },
+    );
+
+  return response.appointment;
+}
+
+/*
+ * ==============================
+ * ADMIN — CONCLUIR ATENDIMENTO
+ * ==============================
+ *
+ * IN_PROGRESS
+ * ↓
+ * COMPLETED
+ */
+
+export async function completeAppointment(
+  appointmentId: string,
+): Promise<Appointment> {
+  const response =
+    await apiFetch<AppointmentResponse>(
+      `/admin/appointments/${appointmentId}/complete`,
+      {
+        method:
+          "PATCH",
       },
     );
 

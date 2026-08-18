@@ -41,11 +41,6 @@ const navigation = [
     icon: Users,
   },
   {
-    label: "Profissionais",
-    href: "/admin/profissionais",
-    icon: UserRound,
-  },
-  {
     label: "Serviços",
     href: "/admin/servicos",
     icon: Scissors,

@@ -15,9 +15,11 @@ import {
 } from "../../shared/middleware/require-role.middleware.js";
 
 import {
+  completeAdminAppointmentController,
   confirmAdminAppointmentController,
   listAdminAppointmentsController,
   rejectAdminAppointmentController,
+  startAdminAppointmentController,
 } from "./admin-appointment.controller.js";
 
 const adminOnly = [
@@ -32,14 +34,8 @@ export const adminAppointmentRoutes:
   FastifyPluginAsync =
     async (app) => {
       /*
-       * Lista a agenda de um dia.
-       *
        * GET
        * /api/v1/admin/appointments
-       *
-       * Query:
-       *
-       * ?dateKey=2026-08-20
        */
       app.get(
         "/",
@@ -51,11 +47,6 @@ export const adminAppointmentRoutes:
       );
 
       /*
-       * Confirma uma solicitação.
-       *
-       * PATCH
-       * /api/v1/admin/appointments/:appointmentId/confirm
-       *
        * PENDING_APPROVAL
        * ↓
        * CONFIRMED
@@ -70,18 +61,6 @@ export const adminAppointmentRoutes:
       );
 
       /*
-       * Recusa uma solicitação.
-       *
-       * PATCH
-       * /api/v1/admin/appointments/:appointmentId/reject
-       *
-       * Body:
-       *
-       * {
-       *   "rejectionReason":
-       *     "Não consigo atender neste horário."
-       * }
-       *
        * PENDING_APPROVAL
        * ↓
        * REJECTED
@@ -93,5 +72,33 @@ export const adminAppointmentRoutes:
             adminOnly,
         },
         rejectAdminAppointmentController,
+      );
+
+      /*
+       * CONFIRMED
+       * ↓
+       * IN_PROGRESS
+       */
+      app.patch(
+        "/:appointmentId/start",
+        {
+          preHandler:
+            adminOnly,
+        },
+        startAdminAppointmentController,
+      );
+
+      /*
+       * IN_PROGRESS
+       * ↓
+       * COMPLETED
+       */
+      app.patch(
+        "/:appointmentId/complete",
+        {
+          preHandler:
+            adminOnly,
+        },
+        completeAdminAppointmentController,
       );
     };

@@ -22,34 +22,110 @@ type ClientsDesktopTableProps = {
 function formatPhone(
     phone: string,
 ) {
-    let digits =
-        phone.replace(/\D/g, "");
+    const digits =
+        phone.replace(
+            /\D/g,
+            "",
+        );
 
+    /*
+     * Brasil com DDI +55
+     *
+     * Exemplo:
+     * 5548996825149
+     * ↓
+     * +55 (48) 99682-5149
+     */
     if (
-        digits.startsWith("55") &&
-        digits.length >= 12
+        digits.length === 13 &&
+        digits.startsWith("55")
     ) {
-        digits = digits.slice(2);
+        const ddi =
+            digits.slice(
+                0,
+                2,
+            );
+
+        const ddd =
+            digits.slice(
+                2,
+                4,
+            );
+
+        const firstPart =
+            digits.slice(
+                4,
+                9,
+            );
+
+        const lastPart =
+            digits.slice(
+                9,
+            );
+
+        return `+${ddi} (${ddd}) ${firstPart}-${lastPart}`;
     }
 
-    if (digits.length === 11) {
-        return `(${digits.slice(
-            0,
-            2,
-        )}) ${digits.slice(
-            2,
-            7,
-        )}-${digits.slice(7)}`;
+    /*
+     * Brasil com DDI +55
+     * telefone fixo.
+     */
+    if (
+        digits.length === 12 &&
+        digits.startsWith("55")
+    ) {
+        const ddi =
+            digits.slice(
+                0,
+                2,
+            );
+
+        const ddd =
+            digits.slice(
+                2,
+                4,
+            );
+
+        const firstPart =
+            digits.slice(
+                4,
+                8,
+            );
+
+        const lastPart =
+            digits.slice(
+                8,
+            );
+
+        return `+${ddi} (${ddd}) ${firstPart}-${lastPart}`;
     }
 
-    if (digits.length === 10) {
-        return `(${digits.slice(
-            0,
-            2,
-        )}) ${digits.slice(
-            2,
-            6,
-        )}-${digits.slice(6)}`;
+    /*
+     * Celular sem +55
+     *
+     * 48996825149
+     * ↓
+     * (48) 99682-5149
+     */
+    if (
+        digits.length === 11
+    ) {
+        return digits.replace(
+            /(\d{2})(\d{5})(\d{4})/,
+            "($1) $2-$3",
+        );
+    }
+
+    /*
+     * Telefone fixo sem +55.
+     */
+    if (
+        digits.length === 10
+    ) {
+        return digits.replace(
+            /(\d{2})(\d{4})(\d{4})/,
+            "($1) $2-$3",
+        );
     }
 
     return phone;

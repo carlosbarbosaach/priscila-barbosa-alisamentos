@@ -36,8 +36,9 @@ export class AdminAppointmentNotFoundError
 }
 
 /*
- * Tentativa de alterar um Appointment
- * que já saiu de PENDING_APPROVAL.
+ * O Appointment não está no status
+ * necessário para executar determinada
+ * ação administrativa.
  */
 export class AdminAppointmentInvalidStatusError
   extends Error {
@@ -45,7 +46,7 @@ export class AdminAppointmentInvalidStatusError
     currentStatus: string,
   ) {
     super(
-      `Este agendamento não pode mais ser alterado porque está com status ${currentStatus}.`,
+      `Esta ação não pode ser realizada porque o agendamento está com status ${currentStatus}.`,
     );
 
     this.name =
@@ -55,11 +56,8 @@ export class AdminAppointmentInvalidStatusError
 
 /*
  * Proteção caso o Appointment
- * mude de data de forma inesperada
- * entre a leitura inicial e a
- * Transaction.
- *
- * Hoje dateKey não é editável.
+ * mude de data entre a leitura
+ * inicial e a Transaction.
  */
 export class AdminAppointmentConsistencyError
   extends Error {
@@ -93,14 +91,17 @@ export class AdminAppointmentDecisionService {
   ) {}
 
   /*
-   * ADMIN confirma uma solicitação.
+   * =================================
+   * CONFIRMAR
+   * =================================
    *
    * PENDING_APPROVAL
    * ↓
    * CONFIRMED
    */
   async confirm(
-    input: AppointmentIdentificationInput,
+    input:
+      AppointmentIdentificationInput,
   ): Promise<AppointmentEntity> {
     const preliminaryAppointment =
       await this.getPreliminaryAppointment(
@@ -119,13 +120,6 @@ export class AdminAppointmentDecisionService {
       async (
         transaction,
       ) => {
-        /*
-         * Releitura obrigatória dentro
-         * da Transaction.
-         *
-         * Nunca confiamos somente na
-         * leitura feita anteriormente.
-         */
         const appointment =
           await this.appointmentRepository
             .findByIdInTransaction(
@@ -150,14 +144,6 @@ export class AdminAppointmentDecisionService {
         const now =
           Timestamp.now();
 
-        /*
-         * PENDING já bloqueava a agenda.
-         *
-         * CONFIRMED também bloqueia.
-         *
-         * Portanto não precisamos
-         * recalcular conflito aqui.
-         */
         this.appointmentRepository
           .updateInTransaction(
             transaction,
@@ -193,29 +179,22 @@ export class AdminAppointmentDecisionService {
   }
 
   /*
-   * ADMIN recusa uma solicitação.
+   * =================================
+   * RECUSAR
+   * =================================
    *
    * PENDING_APPROVAL
    * ↓
    * REJECTED
-   *
-   * Como REJECTED não bloqueia a
-   * agenda, o horário voltará a ser
-   * considerado pela disponibilidade.
    */
   async reject(
-    input: RejectAppointmentInput,
+    input:
+      RejectAppointmentInput,
   ): Promise<AppointmentEntity> {
     const rejectionReason =
       input.rejectionReason
         .trim();
 
-    /*
-     * Validação defensiva.
-     *
-     * Depois também teremos Zod
-     * na camada HTTP.
-     */
     if (
       rejectionReason.length <
       3
@@ -308,19 +287,190 @@ export class AdminAppointmentDecisionService {
   }
 
   /*
-   * Precisamos descobrir dateKey
-   * antes de abrir o lock daquele dia.
+   * =================================
+   * INICIAR ATENDIMENTO
+   * =================================
    *
-   * Depois o Appointment é lido
-   * novamente dentro da Transaction.
+   * CONFIRMED
+   * ↓
+   * IN_PROGRESS
+   */
+  async start(
+    input:
+      AppointmentIdentificationInput,
+  ): Promise<AppointmentEntity> {
+    const preliminaryAppointment =
+      await this.getPreliminaryAppointment(
+        input,
+      );
+
+    return this.dayTransactionService.run(
+      {
+        salonId:
+          input.salonId,
+
+        dateKey:
+          preliminaryAppointment.dateKey,
+      },
+
+      async (
+        transaction,
+      ) => {
+        const appointment =
+          await this.appointmentRepository
+            .findByIdInTransaction(
+              transaction,
+              input.salonId,
+              input.appointmentId,
+            );
+
+        if (!appointment) {
+          throw new AdminAppointmentNotFoundError();
+        }
+
+        this.ensureSameDateKey(
+          preliminaryAppointment,
+          appointment,
+        );
+
+        this.ensureConfirmed(
+          appointment,
+        );
+
+        const now =
+          Timestamp.now();
+
+        this.appointmentRepository
+          .updateInTransaction(
+            transaction,
+            appointment.id,
+            {
+              status:
+                APPOINTMENT_STATUS
+                  .IN_PROGRESS,
+
+              updatedAt:
+                now,
+            },
+          );
+
+        return {
+          ...appointment,
+
+          status:
+            APPOINTMENT_STATUS
+              .IN_PROGRESS,
+
+          updatedAt:
+            now,
+        };
+      },
+    );
+  }
+
+  /*
+   * =================================
+   * CONCLUIR ATENDIMENTO
+   * =================================
+   *
+   * IN_PROGRESS
+   * ↓
+   * COMPLETED
+   *
+   * Só entra como concluído
+   * quando a equipe realmente
+   * finalizar o atendimento.
+   */
+  async complete(
+    input:
+      AppointmentIdentificationInput,
+  ): Promise<AppointmentEntity> {
+    const preliminaryAppointment =
+      await this.getPreliminaryAppointment(
+        input,
+      );
+
+    return this.dayTransactionService.run(
+      {
+        salonId:
+          input.salonId,
+
+        dateKey:
+          preliminaryAppointment.dateKey,
+      },
+
+      async (
+        transaction,
+      ) => {
+        const appointment =
+          await this.appointmentRepository
+            .findByIdInTransaction(
+              transaction,
+              input.salonId,
+              input.appointmentId,
+            );
+
+        if (!appointment) {
+          throw new AdminAppointmentNotFoundError();
+        }
+
+        this.ensureSameDateKey(
+          preliminaryAppointment,
+          appointment,
+        );
+
+        /*
+         * Só é possível concluir
+         * atendimento que realmente
+         * esteja em andamento.
+         */
+        this.ensureInProgress(
+          appointment,
+        );
+
+        const now =
+          Timestamp.now();
+
+        this.appointmentRepository
+          .updateInTransaction(
+            transaction,
+            appointment.id,
+            {
+              status:
+                APPOINTMENT_STATUS
+                  .COMPLETED,
+
+              updatedAt:
+                now,
+            },
+          );
+
+        return {
+          ...appointment,
+
+          status:
+            APPOINTMENT_STATUS
+              .COMPLETED,
+
+          updatedAt:
+            now,
+        };
+      },
+    );
+  }
+
+  /*
+   * Descobre dateKey antes
+   * de abrir o lock do dia.
    */
   private async getPreliminaryAppointment(
-    input: AppointmentIdentificationInput,
+    input:
+      AppointmentIdentificationInput,
   ): Promise<AppointmentEntity> {
     if (
       !input.salonId ||
-      input.salonId.trim().length ===
-        0
+      input.salonId.trim()
+        .length === 0
     ) {
       throw new Error(
         "Salão não informado.",
@@ -329,8 +479,9 @@ export class AdminAppointmentDecisionService {
 
     if (
       !input.appointmentId ||
-      input.appointmentId.trim().length ===
-        0
+      input.appointmentId
+        .trim()
+        .length === 0
     ) {
       throw new Error(
         "Agendamento não informado.",
@@ -352,11 +503,12 @@ export class AdminAppointmentDecisionService {
   }
 
   /*
-   * Neste momento apenas solicitações
-   * pendentes podem ser decididas.
+   * PENDING_APPROVAL necessário
+   * para confirmar ou recusar.
    */
   private ensurePendingApproval(
-    appointment: AppointmentEntity,
+    appointment:
+      AppointmentEntity,
   ): void {
     if (
       appointment.status !==
@@ -370,12 +522,46 @@ export class AdminAppointmentDecisionService {
   }
 
   /*
-   * dateKey é a chave que determina
-   * qual appointmentDayLock estamos
-   * utilizando.
-   *
-   * Portanto não permitimos continuar
-   * caso ela tenha mudado.
+   * CONFIRMED necessário
+   * para iniciar atendimento.
+   */
+  private ensureConfirmed(
+    appointment:
+      AppointmentEntity,
+  ): void {
+    if (
+      appointment.status !==
+      APPOINTMENT_STATUS
+        .CONFIRMED
+    ) {
+      throw new AdminAppointmentInvalidStatusError(
+        appointment.status,
+      );
+    }
+  }
+
+  /*
+   * IN_PROGRESS necessário
+   * para concluir atendimento.
+   */
+  private ensureInProgress(
+    appointment:
+      AppointmentEntity,
+  ): void {
+    if (
+      appointment.status !==
+      APPOINTMENT_STATUS
+        .IN_PROGRESS
+    ) {
+      throw new AdminAppointmentInvalidStatusError(
+        appointment.status,
+      );
+    }
+  }
+
+  /*
+   * dateKey determina o lock
+   * transacional daquele dia.
    */
   private ensureSameDateKey(
     preliminary:

@@ -34,12 +34,17 @@ import {
 } from "./modules/dashboard/dashboard.routes.js";
 
 import {
+  adminReportRoutes,
+} from "./modules/reports/admin-report.routes.js";
+
+import {
   serviceRoutes,
 } from "./modules/services/service.routes.js";
 
 export function buildApp() {
   const app = Fastify({
-    logger: true,
+    logger:
+      true,
   });
 
   app.decorateRequest(
@@ -75,6 +80,11 @@ export function buildApp() {
     },
   );
 
+  /*
+   * ==============================
+   * HEALTH
+   * ==============================
+   */
   app.get(
     "/health",
     async () => ({
@@ -87,7 +97,9 @@ export function buildApp() {
   );
 
   /*
-   * Autenticação.
+   * ==============================
+   * AUTENTICAÇÃO
+   * ==============================
    */
   app.register(
     authRoutes,
@@ -98,7 +110,9 @@ export function buildApp() {
   );
 
   /*
-   * Administração geral.
+   * ==============================
+   * ADMINISTRAÇÃO
+   * ==============================
    */
   app.register(
     adminRoutes,
@@ -109,7 +123,9 @@ export function buildApp() {
   );
 
   /*
-   * Dashboard ADMIN.
+   * ==============================
+   * DASHBOARD ADMIN
+   * ==============================
    */
   app.register(
     dashboardRoutes,
@@ -120,7 +136,26 @@ export function buildApp() {
   );
 
   /*
-   * Serviços ADMIN.
+   * ==============================
+   * RELATÓRIOS ADMIN
+   * ==============================
+   *
+   * GET
+   *
+   * /api/v1/admin/reports/summary
+   */
+  app.register(
+    adminReportRoutes,
+    {
+      prefix:
+        "/api/v1/admin/reports",
+    },
+  );
+
+  /*
+   * ==============================
+   * SERVIÇOS ADMIN
+   * ==============================
    */
   app.register(
     serviceRoutes,
@@ -131,7 +166,9 @@ export function buildApp() {
   );
 
   /*
-   * Clientes ADMIN.
+   * ==============================
+   * CLIENTES ADMIN
+   * ==============================
    */
   app.register(
     clientRoutes,
@@ -142,7 +179,9 @@ export function buildApp() {
   );
 
   /*
-   * Preços especiais ADMIN.
+   * ==============================
+   * PREÇOS ESPECIAIS
+   * ==============================
    */
   app.register(
     clientServicePriceRoutes,
@@ -153,10 +192,9 @@ export function buildApp() {
   );
 
   /*
-   * Agenda ADMIN.
-   *
-   * GET
-   * /api/v1/admin/appointments
+   * ==============================
+   * AGENDA ADMIN
+   * ==============================
    */
   app.register(
     adminAppointmentRoutes,
@@ -167,13 +205,9 @@ export function buildApp() {
   );
 
   /*
-   * Agenda CLIENT.
-   *
-   * GET
-   * /api/v1/appointments/availability
-   *
-   * POST
-   * /api/v1/appointments
+   * ==============================
+   * AGENDA CLIENT
+   * ==============================
    */
   app.register(
     appointmentRoutes,

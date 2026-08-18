@@ -1,84 +1,114 @@
-import { USER_ROLES } from "@priscila/shared";
+import {
+  USER_ROLES,
+} from "@priscila/shared";
 
 import type {
-    FastifyPluginAsync,
+  FastifyPluginAsync,
 } from "fastify";
 
-import { authenticate } from "../../shared/middleware/authenticate.middleware.js";
-import { requireRole } from "../../shared/middleware/require-role.middleware.js";
+import {
+  authenticate,
+} from "../../shared/middleware/authenticate.middleware.js";
 
 import {
-    listAllClientServicePricesController,
-    listClientServicePricesController,
-    saveClientServicePriceController,
-    updateClientServicePriceStatusController,
+  requireRole,
+} from "../../shared/middleware/require-role.middleware.js";
+
+import {
+  getClientServicePriceOverviewController,
+  listAllClientServicePricesController,
+  listClientServicePricesController,
+  saveClientServicePriceController,
+  updateClientServicePriceStatusController,
 } from "./client-service-price.controller.js";
 
 const adminOnly = [
-    authenticate,
-    requireRole([
-        USER_ROLES.ADMIN,
-    ]),
+  authenticate,
+
+  requireRole([
+    USER_ROLES.ADMIN,
+  ]),
 ];
 
-export const clientServicePriceRoutes: FastifyPluginAsync =
+export const clientServicePriceRoutes:
+  FastifyPluginAsync =
     async (app) => {
-        /**
-         * Lista todos os preços especiais
-         * pertencentes ao salão autenticado.
-         *
-         * GET
-         * /api/v1/admin/clients/service-prices
-         */
-        app.get(
-            "/service-prices",
-            {
-                preHandler: adminOnly,
-            },
-            listAllClientServicePricesController,
-        );
+      /*
+       * ==============================
+       * VISÃO GERAL DOS PREÇOS
+       * ==============================
+       *
+       * GET
+       *
+       * /api/v1/admin/clients/
+       * service-prices/overview
+       *
+       * Utilizado por:
+       *
+       * /admin/precos-especiais
+       */
+      app.get(
+        "/service-prices/overview",
+        {
+          preHandler:
+            adminOnly,
+        },
+        getClientServicePriceOverviewController,
+      );
 
-        /**
-         * Lista os preços especiais
-         * de uma cliente específica.
-         *
-         * GET
-         * /api/v1/admin/clients/:clientId/service-prices
-         */
-        app.get(
-            "/:clientId/service-prices",
-            {
-                preHandler: adminOnly,
-            },
-            listClientServicePricesController,
-        );
+      /*
+       * ==============================
+       * TODOS OS PREÇOS
+       * ==============================
+       */
+      app.get(
+        "/service-prices",
+        {
+          preHandler:
+            adminOnly,
+        },
+        listAllClientServicePricesController,
+      );
 
-        /**
-         * Cria ou atualiza o preço especial
-         * de uma cliente para um serviço.
-         *
-         * PUT
-         * /api/v1/admin/clients/:clientId/service-prices/:serviceId
-         */
-        app.put(
-            "/:clientId/service-prices/:serviceId",
-            {
-                preHandler: adminOnly,
-            },
-            saveClientServicePriceController,
-        );
+      /*
+       * ==============================
+       * PREÇOS DE UMA CLIENTE
+       * ==============================
+       */
+      app.get(
+        "/:clientId/service-prices",
+        {
+          preHandler:
+            adminOnly,
+        },
+        listClientServicePricesController,
+      );
 
-        /**
-         * Ativa ou desativa um preço especial.
-         *
-         * PATCH
-         * /api/v1/admin/clients/:clientId/service-prices/:serviceId/status
-         */
-        app.patch(
-            "/:clientId/service-prices/:serviceId/status",
-            {
-                preHandler: adminOnly,
-            },
-            updateClientServicePriceStatusController,
-        );
+      /*
+       * ==============================
+       * CRIAR / ATUALIZAR
+       * ==============================
+       */
+      app.put(
+        "/:clientId/service-prices/:serviceId",
+        {
+          preHandler:
+            adminOnly,
+        },
+        saveClientServicePriceController,
+      );
+
+      /*
+       * ==============================
+       * ATIVAR / DESATIVAR
+       * ==============================
+       */
+      app.patch(
+        "/:clientId/service-prices/:serviceId/status",
+        {
+          preHandler:
+            adminOnly,
+        },
+        updateClientServicePriceStatusController,
+      );
     };

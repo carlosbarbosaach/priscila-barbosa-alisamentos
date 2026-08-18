@@ -16,6 +16,7 @@ import {
   CircleX,
   Clock3,
   LoaderCircle,
+  Play,
   RefreshCw,
   Scissors,
   Sparkles,
@@ -40,8 +41,16 @@ import {
 } from "@/features/appointments/hooks/useAdminAppointments";
 
 import {
+  useCompleteAppointment,
+} from "@/features/appointments/hooks/useCompleteAppointment";
+
+import {
   useConfirmAppointment,
 } from "@/features/appointments/hooks/useConfirmAppointment";
+
+import {
+  useStartAppointment,
+} from "@/features/appointments/hooks/useStartAppointment";
 
 const SALON_TIME_ZONE =
   "America/Sao_Paulo";
@@ -302,8 +311,7 @@ function formatPrice(
 ) {
   return currencyFormatter
     .format(
-      priceCents /
-        100,
+      priceCents / 100,
     );
 }
 
@@ -348,7 +356,7 @@ function getAppointmentStatusConfig(
           Sparkles,
 
         className:
-          "border-[#C9D9C4] bg-[#EEF5EB] text-[#36542E]",
+          "border-[#E8D4A7] bg-[#FFF6DF] text-[#8A6525]",
       };
 
     case APPOINTMENT_STATUS
@@ -361,7 +369,7 @@ function getAppointmentStatusConfig(
           CheckCircle2,
 
         className:
-          "border-[#D7DDD3] bg-[#F4F6F2] text-[#596454]",
+          "border-[#C9D9C4] bg-[#EDF5EA] text-[#36542E]",
       };
 
     case APPOINTMENT_STATUS
@@ -410,17 +418,6 @@ export function AdminAgendaPageContent({
   const today =
     getTodayDateKey();
 
-  /*
-   * Se a página recebeu:
-   *
-   * /admin/agenda?date=2026-08-25
-   *
-   * usamos 2026-08-25 como
-   * data inicial.
-   *
-   * Se não houver data ou ela
-   * for inválida, usamos hoje.
-   */
   const [
     dateKey,
     setDateKey,
@@ -434,10 +431,6 @@ export function AdminAgendaPageContent({
           : today,
     );
 
-  /*
-   * Appointment que está sendo
-   * confirmado neste momento.
-   */
   const [
     confirmingAppointmentId,
     setConfirmingAppointmentId,
@@ -446,10 +439,22 @@ export function AdminAgendaPageContent({
       null,
     );
 
-  /*
-   * Appointment selecionado para
-   * abrir o modal de recusa.
-   */
+  const [
+    startingAppointmentId,
+    setStartingAppointmentId,
+  ] =
+    useState<string | null>(
+      null,
+    );
+
+  const [
+    completingAppointmentId,
+    setCompletingAppointmentId,
+  ] =
+    useState<string | null>(
+      null,
+    );
+
   const [
     appointmentToReject,
     setAppointmentToReject,
@@ -459,8 +464,8 @@ export function AdminAgendaPageContent({
     );
 
   const [
-    confirmError,
-    setConfirmError,
+    actionError,
+    setActionError,
   ] =
     useState<string | null>(
       null,
@@ -482,6 +487,12 @@ export function AdminAgendaPageContent({
   const confirmMutation =
     useConfirmAppointment();
 
+  const startMutation =
+    useStartAppointment();
+
+  const completeMutation =
+    useCompleteAppointment();
+
   const isToday =
     dateKey ===
     today;
@@ -493,8 +504,13 @@ export function AdminAgendaPageContent({
       ),
     );
 
+  const isActionPending =
+    confirmMutation.isPending ||
+    startMutation.isPending ||
+    completeMutation.isPending;
+
   function clearActionState() {
-    setConfirmError(
+    setActionError(
       null,
     );
 
@@ -553,17 +569,21 @@ export function AdminAgendaPageContent({
     );
   }
 
+  /*
+   * PENDING_APPROVAL
+   * ↓
+   * CONFIRMED
+   */
   async function handleConfirmAppointment(
     appointmentId: string,
   ) {
     if (
-      confirmMutation
-        .isPending
+      isActionPending
     ) {
       return;
     }
 
-    setConfirmError(
+    setActionError(
       null,
     );
 
@@ -586,7 +606,7 @@ export function AdminAgendaPageContent({
           ? error.message
           : "Não foi possível confirmar o agendamento.";
 
-      setConfirmError(
+      setActionError(
         message,
       );
     } finally {
@@ -596,17 +616,102 @@ export function AdminAgendaPageContent({
     }
   }
 
-  function handleOpenRejectDialog(
-    appointment: Appointment,
+  /*
+   * CONFIRMED
+   * ↓
+   * IN_PROGRESS
+   */
+  async function handleStartAppointment(
+    appointmentId: string,
   ) {
     if (
-      confirmMutation
-        .isPending
+      isActionPending
     ) {
       return;
     }
 
-    setConfirmError(
+    setActionError(
+      null,
+    );
+
+    setStartingAppointmentId(
+      appointmentId,
+    );
+
+    try {
+      await startMutation
+        .mutateAsync(
+          appointmentId,
+        );
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Não foi possível iniciar o atendimento.";
+
+      setActionError(
+        message,
+      );
+    } finally {
+      setStartingAppointmentId(
+        null,
+      );
+    }
+  }
+
+  /*
+   * IN_PROGRESS
+   * ↓
+   * COMPLETED
+   */
+  async function handleCompleteAppointment(
+    appointmentId: string,
+  ) {
+    if (
+      isActionPending
+    ) {
+      return;
+    }
+
+    setActionError(
+      null,
+    );
+
+    setCompletingAppointmentId(
+      appointmentId,
+    );
+
+    try {
+      await completeMutation
+        .mutateAsync(
+          appointmentId,
+        );
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Não foi possível concluir o atendimento.";
+
+      setActionError(
+        message,
+      );
+    } finally {
+      setCompletingAppointmentId(
+        null,
+      );
+    }
+  }
+
+  function handleOpenRejectDialog(
+    appointment: Appointment,
+  ) {
+    if (
+      isActionPending
+    ) {
+      return;
+    }
+
+    setActionError(
       null,
     );
 
@@ -643,7 +748,6 @@ export function AdminAgendaPageContent({
           </p>
         </div>
 
-        {/* NAVEGAÇÃO DE DATA */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <Button
             type="button"
@@ -748,20 +852,19 @@ export function AdminAgendaPageContent({
         </div>
       </section>
 
-      {/* ERRO DA CONFIRMAÇÃO */}
-      {confirmError && (
+      {/* ERRO */}
+      {actionError && (
         <section className="mt-5">
           <div className="flex items-start gap-3 rounded-2xl border border-[#E8D4CF] bg-[#FFF9F7] px-4 py-4 text-[#984B3E]">
             <TriangleAlert className="mt-0.5 size-5 shrink-0" />
 
             <div>
               <p className="text-sm font-semibold">
-                Não foi possível
-                confirmar o agendamento
+                Não foi possível atualizar o agendamento
               </p>
 
               <p className="mt-1 text-sm leading-6">
-                {confirmError}
+                {actionError}
               </p>
             </div>
           </div>
@@ -771,7 +874,6 @@ export function AdminAgendaPageContent({
       {/* AGENDA */}
       <section className="mt-6">
         <div className="overflow-hidden rounded-2xl border border-[#E5DED1] bg-[#FFFDF8] shadow-sm">
-          {/* TÍTULO */}
           <div className="border-b border-[#EAE4D8] px-5 py-5 sm:px-6">
             <div className="flex items-center gap-3">
               <div className="flex size-10 items-center justify-center rounded-xl bg-[#F1EBDD] text-[#465B36]">
@@ -784,15 +886,12 @@ export function AdminAgendaPageContent({
                 </h2>
 
                 <p className="mt-0.5 text-sm text-[#73776D]">
-                  Agendamentos e
-                  solicitações desta
-                  data.
+                  Agendamentos e solicitações desta data.
                 </p>
               </div>
             </div>
           </div>
 
-          {/* LOADING */}
           {isLoading && (
             <div className="flex min-h-[320px] items-center justify-center p-6">
               <div className="text-center">
@@ -805,7 +904,6 @@ export function AdminAgendaPageContent({
             </div>
           )}
 
-          {/* ERRO DA CONSULTA */}
           {!isLoading &&
             isError && (
               <div className="p-5 sm:p-6">
@@ -817,14 +915,11 @@ export function AdminAgendaPageContent({
 
                     <div className="flex-1">
                       <h3 className="font-semibold text-[#20241D]">
-                        Não foi possível
-                        carregar a agenda
+                        Não foi possível carregar a agenda
                       </h3>
 
                       <p className="mt-1 text-sm leading-6 text-[#73776D]">
-                        Verifique a
-                        conexão com a API
-                        e tente novamente.
+                        Verifique a conexão com a API e tente novamente.
                       </p>
                     </div>
 
@@ -856,7 +951,6 @@ export function AdminAgendaPageContent({
               </div>
             )}
 
-          {/* AGENDA VAZIA */}
           {!isLoading &&
             !isError &&
             appointments.length ===
@@ -869,23 +963,17 @@ export function AdminAgendaPageContent({
                     </div>
 
                     <h3 className="mt-5 font-semibold text-[#20241D]">
-                      Nenhum agendamento
-                      neste dia
+                      Nenhum agendamento neste dia
                     </h3>
 
                     <p className="mt-2 text-sm leading-6 text-[#73776D]">
-                      Não existem
-                      solicitações ou
-                      atendimentos
-                      cadastrados para
-                      esta data.
+                      Não existem solicitações ou atendimentos cadastrados para esta data.
                     </p>
                   </div>
                 </div>
               </div>
             )}
 
-          {/* AGENDAMENTOS */}
           {!isLoading &&
             !isError &&
             appointments.length >
@@ -897,8 +985,7 @@ export function AdminAgendaPageContent({
                   ) => {
                     const status =
                       getAppointmentStatusConfig(
-                        appointment
-                          .status,
+                        appointment.status,
                       );
 
                     const StatusIcon =
@@ -909,8 +996,31 @@ export function AdminAgendaPageContent({
                       APPOINTMENT_STATUS
                         .PENDING_APPROVAL;
 
+                    const isConfirmed =
+                      appointment.status ===
+                      APPOINTMENT_STATUS
+                        .CONFIRMED;
+
+                    const isInProgress =
+                      appointment.status ===
+                      APPOINTMENT_STATUS
+                        .IN_PROGRESS;
+
+                    const isCompleted =
+                      appointment.status ===
+                      APPOINTMENT_STATUS
+                        .COMPLETED;
+
                     const isConfirming =
                       confirmingAppointmentId ===
+                      appointment.id;
+
+                    const isStarting =
+                      startingAppointmentId ===
+                      appointment.id;
+
+                    const isCompleting =
+                      completingAppointmentId ===
                       appointment.id;
 
                     return (
@@ -939,8 +1049,19 @@ export function AdminAgendaPageContent({
 
                           {isPending && (
                             <span className="text-xs font-medium text-[#8A6A2F]">
-                              Requer ação da
-                              equipe
+                              Requer ação da equipe
+                            </span>
+                          )}
+
+                          {isInProgress && (
+                            <span className="text-xs font-semibold text-[#8A6525]">
+                              Atendimento em andamento
+                            </span>
+                          )}
+
+                          {isCompleted && (
+                            <span className="text-xs font-semibold text-[#36542E]">
+                              Atendimento finalizado
                             </span>
                           )}
                         </div>
@@ -960,8 +1081,7 @@ export function AdminAgendaPageContent({
 
                               <p className="mt-0.5 text-lg font-bold text-[#20241D]">
                                 {formatTime(
-                                  appointment
-                                    .startsAt,
+                                  appointment.startsAt,
                                 )}
                               </p>
                             </div>
@@ -981,15 +1101,13 @@ export function AdminAgendaPageContent({
 
                                 <h3 className="mt-1 truncate font-semibold text-[#20241D]">
                                   {
-                                    appointment
-                                      .clientNameSnapshot
+                                    appointment.clientNameSnapshot
                                   }
                                 </h3>
 
                                 <p className="mt-1 text-sm text-[#73776D]">
                                   {
-                                    appointment
-                                      .clientPhoneSnapshot
+                                    appointment.clientPhoneSnapshot
                                   }
                                 </p>
                               </div>
@@ -1010,15 +1128,13 @@ export function AdminAgendaPageContent({
 
                                 <p className="mt-1 truncate font-semibold text-[#20241D]">
                                   {
-                                    appointment
-                                      .serviceNameSnapshot
+                                    appointment.serviceNameSnapshot
                                   }
                                 </p>
 
                                 <p className="mt-1 text-sm text-[#73776D]">
                                   {
-                                    appointment
-                                      .durationMinutes
+                                    appointment.durationMinutes
                                   }{" "}
                                   min
                                 </p>
@@ -1034,14 +1150,13 @@ export function AdminAgendaPageContent({
 
                             <p className="mt-1 text-lg font-semibold text-[#304229]">
                               {formatPrice(
-                                appointment
-                                  .chargedPriceCents,
+                                appointment.chargedPriceCents,
                               )}
                             </p>
                           </div>
                         </div>
 
-                        {/* MOTIVO DE RECUSA */}
+                        {/* MOTIVO RECUSA */}
                         {appointment.status ===
                           APPOINTMENT_STATUS
                             .REJECTED &&
@@ -1049,29 +1164,25 @@ export function AdminAgendaPageContent({
                             .rejectionReason && (
                             <div className="mt-5 rounded-xl border border-[#E8CEC7] bg-[#FFF8F6] px-4 py-3">
                               <p className="text-xs font-semibold uppercase tracking-wide text-[#984B3E]">
-                                Motivo da
-                                recusa
+                                Motivo da recusa
                               </p>
 
                               <p className="mt-1 text-sm leading-6 text-[#6E554F]">
                                 {
-                                  appointment
-                                    .rejectionReason
+                                  appointment.rejectionReason
                                 }
                               </p>
                             </div>
                           )}
 
-                        {/* AÇÕES */}
+                        {/* PENDENTE */}
                         {isPending && (
                           <div className="mt-5 flex flex-col gap-3 border-t border-[#EAE4D8] pt-5 sm:flex-row sm:items-center sm:justify-end">
-                            {/* RECUSAR */}
                             <Button
                               type="button"
                               variant="outline"
                               disabled={
-                                confirmMutation
-                                  .isPending
+                                isActionPending
                               }
                               onClick={() =>
                                 handleOpenRejectDialog(
@@ -1085,12 +1196,10 @@ export function AdminAgendaPageContent({
                               Recusar
                             </Button>
 
-                            {/* CONFIRMAR */}
                             <Button
                               type="button"
                               disabled={
-                                confirmMutation
-                                  .isPending
+                                isActionPending
                               }
                               onClick={() =>
                                 void handleConfirmAppointment(
@@ -1111,6 +1220,62 @@ export function AdminAgendaPageContent({
                             </Button>
                           </div>
                         )}
+
+                        {/* CONFIRMADO */}
+                        {isConfirmed && (
+                          <div className="mt-5 flex justify-end border-t border-[#EAE4D8] pt-5">
+                            <Button
+                              type="button"
+                              disabled={
+                                isActionPending
+                              }
+                              onClick={() =>
+                                void handleStartAppointment(
+                                  appointment.id,
+                                )
+                              }
+                              className="bg-[#304229] text-white hover:bg-[#24351F]"
+                            >
+                              {isStarting ? (
+                                <LoaderCircle className="mr-2 size-4 animate-spin" />
+                              ) : (
+                                <Play className="mr-2 size-4 fill-current" />
+                              )}
+
+                              {isStarting
+                                ? "Iniciando..."
+                                : "Iniciar atendimento"}
+                            </Button>
+                          </div>
+                        )}
+
+                        {/* EM ATENDIMENTO */}
+                        {isInProgress && (
+                          <div className="mt-5 flex justify-end border-t border-[#EAE4D8] pt-5">
+                            <Button
+                              type="button"
+                              disabled={
+                                isActionPending
+                              }
+                              onClick={() =>
+                                void handleCompleteAppointment(
+                                  appointment.id,
+                                )
+                              }
+                              className="bg-[#465B36] text-white hover:bg-[#304229]"
+                            >
+                              {isCompleting ? (
+                                <LoaderCircle className="mr-2 size-4 animate-spin" />
+                              ) : (
+                                <CheckCircle2 className="mr-2 size-4" />
+                              )}
+
+                              {isCompleting
+                                ? "Concluindo..."
+                                : "Concluir atendimento"}
+                            </Button>
+                          </div>
+                        )}
                       </article>
                     );
                   },
@@ -1120,7 +1285,7 @@ export function AdminAgendaPageContent({
         </div>
       </section>
 
-      {/* MODAL DE RECUSA */}
+      {/* MODAL RECUSA */}
       {appointmentToReject && (
         <RejectAppointmentDialog
           key={
