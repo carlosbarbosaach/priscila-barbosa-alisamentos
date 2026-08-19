@@ -1,5 +1,6 @@
 import {
     APPOINTMENT_STATUS,
+    SERVICE_PRICE_TYPES,
 } from "@priscila/shared";
 
 import {
@@ -69,13 +70,13 @@ export class AppointmentCreationService {
 
         private readonly dateTimeService =
             new AppointmentDateTimeService(),
-    ) { }
+    ) {}
 
     async prepare(
         input: PrepareAppointmentInput,
     ): Promise<AppointmentDocument> {
         /*
-         * 1. Cliente.
+         * 1. CLIENTE
          */
         const client =
             await this.clientRepository
@@ -97,7 +98,7 @@ export class AppointmentCreationService {
         }
 
         /*
-         * 2. Serviço.
+         * 2. SERVIÇO
          */
         const service =
             await this.serviceRepository
@@ -122,15 +123,11 @@ export class AppointmentCreationService {
             service.phases ?? [];
 
         /*
-         * 3. Verificamos se o horário
-         * aparece realmente entre os
-         * slots disponíveis.
+         * 3. DISPONIBILIDADE
          *
-         * Esta ainda é uma validação
-         * preliminar.
-         *
-         * No Passo 141F faremos novamente
-         * dentro da proteção contra corrida.
+         * Confirma se o horário escolhido
+         * ainda faz parte dos horários
+         * disponíveis para aquele dia.
          */
         const availableSlots =
             await this.availabilityService
@@ -161,8 +158,11 @@ export class AppointmentCreationService {
         }
 
         /*
-         * 4. Transformamos horário local
-         * em instante real.
+         * 4. DATA / HORÁRIO
+         *
+         * Converte a data e o horário
+         * locais do salão para um Date
+         * real.
          */
         const startsAtDate =
             this.dateTimeService
@@ -172,7 +172,7 @@ export class AppointmentCreationService {
                 );
 
         /*
-         * Não aceitamos novo agendamento
+         * Não permitimos agendamento
          * no passado.
          */
         if (
@@ -184,6 +184,14 @@ export class AppointmentCreationService {
             );
         }
 
+        /*
+         * O horário final continua sendo
+         * calculado pela duração prevista
+         * do serviço.
+         *
+         * Essa duração NÃO bloqueia outros
+         * horários fixos da agenda.
+         */
         const endsAtDate =
             this.dateTimeService
                 .addMinutes(
@@ -192,8 +200,13 @@ export class AppointmentCreationService {
                 );
 
         /*
-         * 5. Calculamos os períodos
-         * efetivos de ocupação.
+         * 5. SNAPSHOT DE OCUPAÇÃO
+         *
+         * Mantemos essa informação para
+         * histórico e futuras regras,
+         * mesmo que atualmente a duração
+         * não bloqueie os outros horários
+         * fixos da Priscila.
          */
         const professionalOccupancySnapshot =
             this.occupancyService
@@ -205,11 +218,13 @@ export class AppointmentCreationService {
                 });
 
         /*
-         * 6. Resolve:
+         * 6. PREÇO
          *
-         * preço especial
-         * OU
-         * preço padrão.
+         * Resolve:
+         *
+         * - preço especial da cliente;
+         * ou
+         * - preço padrão do serviço.
          */
         const resolvedPrice =
             await this.priceResolver
@@ -228,12 +243,10 @@ export class AppointmentCreationService {
             Timestamp.now();
 
         /*
-         * 7. Montamos o documento completo.
+         * 7. DOCUMENTO DO AGENDAMENTO
          *
-         * Ainda NÃO gravamos.
-         *
-         * A persistência segura será feita
-         * no próximo passo.
+         * Aqui montamos os snapshots que
+         * devem permanecer históricos.
          */
         return {
             salonId:
@@ -267,19 +280,59 @@ export class AppointmentCreationService {
 
             professionalOccupancySnapshot,
 
+            /*
+             * Snapshot da cliente.
+             */
             clientNameSnapshot:
                 client.name,
 
             clientPhoneSnapshot:
                 client.phone,
 
+            /*
+             * Snapshot do serviço.
+             */
             serviceNameSnapshot:
                 service.name,
 
+            /*
+             * Guarda como o preço do
+             * serviço era apresentado
+             * quando o agendamento foi
+             * criado.
+             *
+             * FIXED
+             * ou
+             * STARTING_FROM
+             *
+             * Serviços antigos que ainda
+             * não possuem priceType são
+             * considerados FIXED.
+             */
+            servicePriceTypeSnapshot:
+                service.priceType ??
+                SERVICE_PRICE_TYPES.FIXED,
+
+            /*
+             * Valor aplicado inicialmente
+             * ao agendamento.
+             *
+             * Se existir preço especial,
+             * será o preço especial.
+             *
+             * Se o serviço for
+             * STARTING_FROM, este valor
+             * representa o valor inicial.
+             */
             chargedPriceCents:
                 resolvedPrice
                     .priceCents,
 
+            /*
+             * SERVICE_DEFAULT
+             * ou
+             * CLIENT_SPECIAL
+             */
             priceSource:
                 resolvedPrice
                     .priceSource,

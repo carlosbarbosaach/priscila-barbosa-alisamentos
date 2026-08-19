@@ -7,6 +7,7 @@ import {
 
 import {
   completeAppointment,
+  type CompleteAppointmentInput,
 } from "../appointments.api";
 
 export function useCompleteAppointment() {
@@ -15,59 +16,76 @@ export function useCompleteAppointment() {
 
   return useMutation({
     mutationFn: (
-      appointmentId: string,
+      input:
+        CompleteAppointmentInput,
     ) =>
       completeAppointment(
-        appointmentId,
+        input,
       ),
 
-    onSuccess: async () => {
-      await Promise.all([
-        /*
-         * Atualiza a Agenda ADMIN.
-         */
-        queryClient.invalidateQueries({
-          queryKey: [
-            "admin",
-            "appointments",
-          ],
-        }),
+    onSuccess:
+      async () => {
+        await Promise.all([
+          /*
+           * Agenda ADMIN.
+           */
+          queryClient
+            .invalidateQueries({
+              queryKey: [
+                "admin",
+                "appointments",
+              ],
+            }),
 
-        /*
-         * Deixa o Dashboard preparado
-         * para futuras métricas de
-         * atendimentos concluídos.
-         */
-        queryClient.invalidateQueries({
-          queryKey: [
-            "admin",
-            "dashboard",
-          ],
-        }),
+          /*
+           * Dashboard ADMIN.
+           */
+          queryClient
+            .invalidateQueries({
+              queryKey: [
+                "admin",
+                "dashboard",
+              ],
+            }),
 
-        /*
-         * COMPLETED não bloqueia
-         * disponibilidade.
-         */
-        queryClient.invalidateQueries({
-          queryKey: [
-            "client",
-            "appointment-availability",
-          ],
-        }),
+          /*
+           * Relatórios.
+           *
+           * O valor final pode ter
+           * mudado ao concluir.
+           */
+          queryClient
+            .invalidateQueries({
+              queryKey: [
+                "admin",
+                "reports",
+              ],
+            }),
 
-        /*
-         * Caso a sessão da cliente esteja
-         * usando o mesmo QueryClient,
-         * atualizamos histórico/próximos.
-         */
-        queryClient.invalidateQueries({
-          queryKey: [
-            "client",
-            "appointments",
-          ],
-        }),
-      ]);
-    },
+          /*
+           * COMPLETED libera
+           * disponibilidade.
+           */
+          queryClient
+            .invalidateQueries({
+              queryKey: [
+                "client",
+                "appointment-availability",
+              ],
+            }),
+
+          /*
+           * Atualiza histórico
+           * da cliente.
+           */
+          queryClient
+            .invalidateQueries({
+              queryKey: [
+                "client",
+                "appointments",
+              ],
+            }),
+        ]);
+      },
   });
 }

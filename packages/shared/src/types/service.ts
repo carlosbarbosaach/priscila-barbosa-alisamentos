@@ -2,20 +2,74 @@ import type {
   ServicePhase,
 } from "./service-phase.js";
 
-export type Service = {
-  id: string;
-  salonId: string;
+/*
+ * Forma como o preço do serviço
+ * deve ser apresentado.
+ *
+ * FIXED:
+ * R$ 250,00
+ *
+ * STARTING_FROM:
+ * A partir de R$ 500,00
+ */
+export const SERVICE_PRICE_TYPES = {
+  FIXED:
+    "FIXED",
 
-  name: string;
-  description: string | null;
-  category: string;
+  STARTING_FROM:
+    "STARTING_FROM",
+} as const;
+
+export type ServicePriceType =
+  typeof SERVICE_PRICE_TYPES[
+    keyof typeof SERVICE_PRICE_TYPES
+  ];
+
+export type Service = {
+  id:
+    string;
+
+  salonId:
+    string;
+
+  name:
+    string;
+
+  description:
+    string | null;
+
+  category:
+    string;
 
   /*
-   * Duração total prevista do serviço.
+   * Duração total prevista
+   * do serviço.
    */
-  durationMinutes: number;
+  durationMinutes:
+    number;
 
-  defaultPriceCents: number;
+  /*
+   * Valor base do serviço.
+   *
+   * Exemplo:
+   *
+   * FIXED
+   * defaultPriceCents = 25000
+   * → R$ 250,00
+   *
+   * STARTING_FROM
+   * defaultPriceCents = 50000
+   * → A partir de R$ 500,00
+   */
+  defaultPriceCents:
+    number;
+
+  /*
+   * Define se o preço é fixo
+   * ou "a partir de".
+   */
+  priceType:
+    ServicePriceType;
 
   /*
    * Etapas operacionais do serviço.
@@ -29,10 +83,15 @@ export type Service = {
    * Serviço antigo sem configuração:
    * phases = []
    */
-  phases: ServicePhase[];
+  phases:
+    ServicePhase[];
 
-  active: boolean;
+  active:
+    boolean;
 
-  createdAt: string;
-  updatedAt: string;
+  createdAt:
+    string;
+
+  updatedAt:
+    string;
 };

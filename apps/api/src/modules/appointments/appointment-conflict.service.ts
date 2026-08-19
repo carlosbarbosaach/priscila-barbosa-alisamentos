@@ -4,297 +4,166 @@ import {
 } from "./appointment.config.js";
 
 import type {
-    ProfessionalOccupancyInterval,
-} from "./appointment-occupancy.types.js";
-
-import type {
     AppointmentDocument,
     AppointmentEntity,
-    AppointmentOccupancyIntervalDocument,
 } from "./appointment.types.js";
 
 type HasConflictAtLocalStartInput = {
-    candidateStartMinutes: number;
+    /*
+     * Horário de início da nova
+     * solicitação em minutos.
+     *
+     * Exemplo:
+     *
+     * 08:00 = 480
+     */
+    candidateStartMinutes:
+        number;
 
-    candidateDurationMinutes: number;
-
-    candidateOccupancy:
-    ProfessionalOccupancyInterval[];
-
-    appointments: AppointmentEntity[];
-};
-
-type AbsoluteOccupancyInterval = {
-    startMinutes: number;
-    endMinutes: number;
+    /*
+     * Agendamentos existentes
+     * naquele mesmo dia.
+     */
+    appointments:
+        AppointmentEntity[];
 };
 
 export class AppointmentConflictService {
     /*
-     * Utilizado pela tela/listagem
-     * de disponibilidade.
+     * =================================
+     * REGRA OFICIAL DE CONFLITO
+     * =================================
+     *
+     * A duração de um atendimento
+     * NÃO bloqueia outro horário fixo.
      *
      * Exemplo:
      *
-     * candidato começa 09:00
-     * startMinutes = 540
+     * 07:00 → atendimento de 4 horas
+     * 08:00 → disponível ✅
+     *
+     * Porém duas solicitações no
+     * MESMO horário não são permitidas:
+     *
+     * 08:00 → PENDING_APPROVAL
+     * 08:00 → nova solicitação ❌
      */
     hasConflictAtLocalStart(
-        input: HasConflictAtLocalStartInput,
+        input:
+            HasConflictAtLocalStartInput,
     ): boolean {
-        const candidateIntervals =
-            this.toAbsoluteIntervals(
-                input.candidateStartMinutes,
-                input.candidateOccupancy,
-            );
-
-        if (
-            candidateIntervals.length === 0
-        ) {
-            return false;
-        }
-
+        /*
+         * Consideramos somente
+         * agendamentos que ainda
+         * ocupam aquele horário.
+         *
+         * REJECTED
+         * CANCELLED
+         * COMPLETED
+         *
+         * não impedem nova solicitação.
+         */
         const blockingAppointments =
             input.appointments.filter(
-                (appointment) =>
+                (
+                    appointment,
+                ) =>
                     isBlockingAppointmentStatus(
                         appointment.status,
                     ),
             );
 
+        /*
+         * Agora não verificamos mais
+         * sobreposição entre intervalos.
+         *
+         * Apenas verificamos se existe
+         * outro Appointment começando
+         * exatamente no mesmo horário.
+         */
         return blockingAppointments.some(
-            (appointment) => {
-                const occupiedIntervals =
-                    this.appointmentToAbsoluteOccupancy(
-                        appointment,
+            (
+                appointment,
+            ) => {
+                const appointmentStartMinutes =
+                    this.dateToLocalMinutes(
+                        appointment
+                            .startsAt
+                            .toDate(),
                     );
 
-                return this.intervalsConflict(
-                    candidateIntervals,
-                    occupiedIntervals,
+                return (
+                    appointmentStartMinutes ===
+                    input
+                        .candidateStartMinutes
                 );
             },
         );
     }
 
     /*
-     * Utilizado no momento da gravação
-     * transacional.
+     * =================================
+     * VALIDAÇÃO TRANSACIONAL
+     * =================================
      *
-     * Recebe o AppointmentDocument já
-     * preparado pelo 141E.
+     * Utilizado pelo
+     * AppointmentBookingService.
+     *
+     * Esta é a proteção real contra
+     * duas clientes tentando reservar
+     * exatamente o mesmo horário
+     * simultaneamente.
      */
     hasPreparedAppointmentConflict(
-        candidate: AppointmentDocument,
-        appointments: AppointmentEntity[],
+        candidate:
+            AppointmentDocument,
+
+        appointments:
+            AppointmentEntity[],
     ): boolean {
         const candidateStartMinutes =
             this.dateToLocalMinutes(
-                candidate.startsAt.toDate(),
-            );
-
-        const candidateOccupancy =
-            this.resolveOccupancySnapshot(
                 candidate
-                    .professionalOccupancySnapshot,
-                candidate.durationMinutes,
+                    .startsAt
+                    .toDate(),
             );
 
-        return this.hasConflictAtLocalStart({
-            candidateStartMinutes,
+        return this
+            .hasConflictAtLocalStart({
+                candidateStartMinutes,
 
-            candidateDurationMinutes:
-                candidate.durationMinutes,
-
-            candidateOccupancy,
-
-            appointments,
-        });
-    }
-
-    private appointmentToAbsoluteOccupancy(
-        appointment: AppointmentEntity,
-    ): AbsoluteOccupancyInterval[] {
-        const appointmentStartMinutes =
-            this.dateToLocalMinutes(
-                appointment.startsAt.toDate(),
-            );
-
-        const occupancy =
-            this.resolveOccupancySnapshot(
-                appointment
-                    .professionalOccupancySnapshot,
-                appointment.durationMinutes,
-            );
-
-        return this.toAbsoluteIntervals(
-            appointmentStartMinutes,
-            occupancy,
-        );
+                appointments,
+            });
     }
 
     /*
-     * Compatibilidade com documentos
-     * antigos:
+     * =================================
+     * DATA → MINUTOS LOCAIS
+     * =================================
      *
-     * sem snapshot
-     * ↓
-     * considera toda a duração ocupada.
-     *
-     * snapshot []
-     * ↓
-     * nenhum período ocupa profissional.
-     */
-    private resolveOccupancySnapshot(
-        snapshot:
-            | AppointmentOccupancyIntervalDocument[]
-            | undefined,
-
-        durationMinutes: number,
-    ): ProfessionalOccupancyInterval[] {
-        if (!snapshot) {
-            return [
-                {
-                    startOffsetMinutes: 0,
-                    endOffsetMinutes:
-                        durationMinutes,
-                },
-            ];
-        }
-
-        this.validateOccupancySnapshot(
-            snapshot,
-            durationMinutes,
-        );
-
-        return snapshot.map(
-            (interval) => ({
-                startOffsetMinutes:
-                    interval.startOffsetMinutes,
-
-                endOffsetMinutes:
-                    interval.endOffsetMinutes,
-            }),
-        );
-    }
-
-    private validateOccupancySnapshot(
-        snapshot:
-            AppointmentOccupancyIntervalDocument[],
-
-        durationMinutes: number,
-    ): void {
-        for (
-            const interval of snapshot
-        ) {
-            const isValid =
-                Number.isInteger(
-                    interval.startOffsetMinutes,
-                ) &&
-                Number.isInteger(
-                    interval.endOffsetMinutes,
-                ) &&
-                interval.startOffsetMinutes >=
-                0 &&
-                interval.endOffsetMinutes >
-                interval.startOffsetMinutes &&
-                interval.endOffsetMinutes <=
-                durationMinutes;
-
-            if (!isValid) {
-                throw new Error(
-                    "Agendamento possui snapshot de ocupação inválido.",
-                );
-            }
-        }
-    }
-
-    private toAbsoluteIntervals(
-        startMinutes: number,
-
-        occupancy:
-            ProfessionalOccupancyInterval[],
-    ): AbsoluteOccupancyInterval[] {
-        return occupancy.map(
-            (interval) => ({
-                startMinutes:
-                    startMinutes +
-                    interval.startOffsetMinutes,
-
-                endMinutes:
-                    startMinutes +
-                    interval.endOffsetMinutes,
-            }),
-        );
-    }
-
-    private intervalsConflict(
-        candidateIntervals:
-            AbsoluteOccupancyInterval[],
-
-        occupiedIntervals:
-            AbsoluteOccupancyInterval[],
-    ): boolean {
-        return candidateIntervals.some(
-            (candidate) =>
-                occupiedIntervals.some(
-                    (occupied) =>
-                        this.hasOverlap(
-                            candidate.startMinutes,
-                            candidate.endMinutes,
-
-                            occupied.startMinutes,
-                            occupied.endMinutes,
-                        ),
-                ),
-        );
-    }
-
-    /*
-     * Exemplo:
-     *
-     * 08:00 → 09:00
-     * 09:00 → 10:00
-     *
-     * NÃO conflitam.
-     *
-     * Mas:
-     *
-     * 08:00 → 09:15
-     * 09:00 → 10:00
-     *
-     * conflitam.
-     */
-    private hasOverlap(
-        candidateStart: number,
-        candidateEnd: number,
-
-        occupiedStart: number,
-        occupiedEnd: number,
-    ): boolean {
-        return (
-            candidateStart <
-            occupiedEnd &&
-            candidateEnd >
-            occupiedStart
-        );
-    }
-
-    /*
      * Firestore Timestamp
      * ↓
+     * horário no fuso do salão
+     * ↓
      * minutos desde meia-noite
-     * no fuso do salão.
+     *
+     * Exemplo:
+     *
+     * 08:00
+     * ↓
+     * 480
      */
     private dateToLocalMinutes(
-        date: Date,
+        date:
+            Date,
     ): number {
         const formatter =
             new Intl.DateTimeFormat(
                 "en-US",
                 {
                     timeZone:
-                        APPOINTMENT_CONFIG.timeZone,
+                        APPOINTMENT_CONFIG
+                            .timeZone,
 
                     hour:
                         "2-digit",
@@ -308,20 +177,25 @@ export class AppointmentConflictService {
             );
 
         const parts =
-            formatter.formatToParts(
-                date,
-            );
+            formatter
+                .formatToParts(
+                    date,
+                );
 
         const hourPart =
             parts.find(
-                (part) =>
+                (
+                    part,
+                ) =>
                     part.type ===
                     "hour",
             );
 
         const minutePart =
             parts.find(
-                (part) =>
+                (
+                    part,
+                ) =>
                     part.type ===
                     "minute",
             );

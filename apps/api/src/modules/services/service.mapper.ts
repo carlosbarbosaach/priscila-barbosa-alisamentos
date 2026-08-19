@@ -1,5 +1,6 @@
-import type {
-  Service,
+import {
+  SERVICE_PRICE_TYPES,
+  type Service,
 } from "@priscila/shared";
 
 import type {
@@ -7,7 +8,8 @@ import type {
 } from "./service.types.js";
 
 export function mapServiceEntityToService(
-  service: ServiceEntity,
+  service:
+    ServiceEntity,
 ): Service {
   return {
     id:
@@ -32,6 +34,20 @@ export function mapServiceEntityToService(
       service.defaultPriceCents,
 
     /*
+     * Compatibilidade com documentos
+     * antigos do Firestore.
+     *
+     * Se não existir priceType:
+     *
+     * undefined
+     * ↓
+     * FIXED
+     */
+    priceType:
+      service.priceType ??
+      SERVICE_PRICE_TYPES.FIXED,
+
+    /*
      * Serviços antigos não possuem
      * phases no Firestore.
      *
@@ -39,18 +55,21 @@ export function mapServiceEntityToService(
      * sempre devolvemos array.
      */
     phases:
-      service.phases ?? [],
+      service.phases ??
+      [],
 
     active:
       service.active,
 
     createdAt:
-      service.createdAt
+      service
+        .createdAt
         .toDate()
         .toISOString(),
 
     updatedAt:
-      service.updatedAt
+      service
+        .updatedAt
         .toDate()
         .toISOString(),
   };

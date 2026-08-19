@@ -10,12 +10,13 @@ import {
  */
 export const adminAppointmentListQuerySchema =
   z.object({
-    dateKey: z
-      .string()
-      .regex(
-        /^\d{4}-\d{2}-\d{2}$/,
-        "Data inválida.",
-      ),
+    dateKey:
+      z
+        .string()
+        .regex(
+          /^\d{4}-\d{2}-\d{2}$/,
+          "Data inválida.",
+        ),
   });
 
 export type AdminAppointmentListQuery =
@@ -29,13 +30,14 @@ export type AdminAppointmentListQuery =
  */
 export const adminAppointmentParamsSchema =
   z.object({
-    appointmentId: z
-      .string()
-      .trim()
-      .min(
-        1,
-        "Agendamento não informado.",
-      ),
+    appointmentId:
+      z
+        .string()
+        .trim()
+        .min(
+          1,
+          "Agendamento não informado.",
+        ),
   });
 
 export type AdminAppointmentParams =
@@ -44,28 +46,69 @@ export type AdminAppointmentParams =
   >;
 
 /*
- * Body da recusa.
- *
- * O motivo será salvo no Appointment
- * e futuramente poderá ser enviado
- * para a cliente via WhatsApp.
+ * =================================
+ * RECUSAR AGENDAMENTO
+ * =================================
  */
 export const rejectAdminAppointmentSchema =
   z.object({
-    rejectionReason: z
-      .string()
-      .trim()
-      .min(
-        3,
-        "Informe um motivo para a recusa.",
-      )
-      .max(
-        500,
-        "O motivo da recusa deve possuir no máximo 500 caracteres.",
-      ),
+    rejectionReason:
+      z
+        .string()
+        .trim()
+        .min(
+          3,
+          "Informe um motivo para a recusa.",
+        )
+        .max(
+          500,
+          "O motivo da recusa deve possuir no máximo 500 caracteres.",
+        ),
   });
 
 export type RejectAdminAppointmentInput =
   z.infer<
     typeof rejectAdminAppointmentSchema
+  >;
+
+/*
+ * =================================
+ * CONCLUIR ATENDIMENTO
+ * =================================
+ *
+ * Para serviços FIXED:
+ *
+ * {}
+ *
+ * Para serviços STARTING_FROM:
+ *
+ * {
+ *   finalPriceCents: 65000
+ * }
+ *
+ * O campo permanece opcional no schema
+ * porque serviços de preço fixo continuam
+ * podendo ser concluídos sem enviar body.
+ *
+ * A regra que exige o valor para
+ * STARTING_FROM fica no Service.
+ */
+export const completeAdminAppointmentSchema =
+  z.object({
+    finalPriceCents:
+      z
+        .number()
+        .int(
+          "O valor final deve ser um número inteiro em centavos.",
+        )
+        .min(
+          1,
+          "O valor final deve ser maior que zero.",
+        )
+        .optional(),
+  });
+
+export type CompleteAdminAppointmentInput =
+  z.infer<
+    typeof completeAdminAppointmentSchema
   >;

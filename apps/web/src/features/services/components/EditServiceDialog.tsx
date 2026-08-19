@@ -1,11 +1,25 @@
 "use client";
 
-import type { FormEvent } from "react";
-import { useState } from "react";
-import type { Service } from "@priscila/shared";
-import { Loader2, Pencil } from "lucide-react";
+import {
+    type FormEvent,
+    useState,
+} from "react";
 
-import { Button } from "@/components/ui/button";
+import {
+    SERVICE_PRICE_TYPES,
+    type Service,
+    type ServicePriceType,
+} from "@priscila/shared";
+
+import {
+    Loader2,
+    Pencil,
+} from "lucide-react";
+
+import {
+    Button,
+} from "@/components/ui/button";
+
 import {
     Dialog,
     DialogContent,
@@ -14,78 +28,183 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 
-import { useUpdateService } from "../hooks/useUpdateService";
+import {
+    Input,
+} from "@/components/ui/input";
+
+import {
+    useUpdateService,
+} from "../hooks/useUpdateService";
 
 type EditServiceDialogProps = {
-    service: Service;
+    service:
+        Service;
 };
 
-function formatPriceInput(digits: string) {
+function formatPriceInput(
+    digits:
+        string,
+) {
     if (!digits) {
         return "";
     }
 
-    const valueInCents = Number(digits);
+    const valueInCents =
+        Number(
+            digits,
+        );
 
-    return new Intl.NumberFormat("pt-BR", {
-        style: "currency",
-        currency: "BRL",
-    }).format(valueInCents / 100);
+    return new Intl.NumberFormat(
+        "pt-BR",
+        {
+            style:
+                "currency",
+
+            currency:
+                "BRL",
+        },
+    ).format(
+        valueInCents /
+            100,
+    );
 }
 
 export function EditServiceDialog({
     service,
 }: EditServiceDialogProps) {
-    const [open, setOpen] = useState(false);
-    const [name, setName] = useState(service.name);
+    const [
+        open,
+        setOpen,
+    ] =
+        useState(
+            false,
+        );
 
-    const [priceDigits, setPriceDigits] = useState(
-        String(service.defaultPriceCents),
-    );
+    const [
+        name,
+        setName,
+    ] =
+        useState(
+            service.name,
+        );
 
-    const [formError, setFormError] = useState("");
+    const [
+        priceDigits,
+        setPriceDigits,
+    ] =
+        useState(
+            String(
+                service
+                    .defaultPriceCents,
+            ),
+        );
 
-    const updateService = useUpdateService();
+    const [
+        priceType,
+        setPriceType,
+    ] =
+        useState<ServicePriceType>(
+            service.priceType,
+        );
 
-    const formattedPrice = formatPriceInput(priceDigits);
+    const [
+        formError,
+        setFormError,
+    ] =
+        useState(
+            "",
+        );
+
+    const updateService =
+        useUpdateService();
+
+    const formattedPrice =
+        formatPriceInput(
+            priceDigits,
+        );
+
+    const isFixedPrice =
+        priceType ===
+        SERVICE_PRICE_TYPES.FIXED;
 
     function handleOpen() {
-        setName(service.name);
-        setPriceDigits(
-            String(service.defaultPriceCents),
+        setName(
+            service.name,
         );
-        setFormError("");
-        setOpen(true);
+
+        setPriceDigits(
+            String(
+                service
+                    .defaultPriceCents,
+            ),
+        );
+
+        setPriceType(
+            service.priceType,
+        );
+
+        setFormError(
+            "",
+        );
+
+        setOpen(
+            true,
+        );
     }
 
-    function handleOpenChange(nextOpen: boolean) {
-        setOpen(nextOpen);
+    function handleOpenChange(
+        nextOpen:
+            boolean,
+    ) {
+        setOpen(
+            nextOpen,
+        );
 
         if (!nextOpen) {
-            setFormError("");
+            setFormError(
+                "",
+            );
         }
     }
 
-    function handlePriceChange(value: string) {
-        const digits = value
-            .replace(/\D/g, "")
-            .slice(0, 9);
+    function handlePriceChange(
+        value:
+            string,
+    ) {
+        const digits =
+            value
+                .replace(
+                    /\D/g,
+                    "",
+                )
+                .slice(
+                    0,
+                    9,
+                );
 
-        setPriceDigits(digits);
+        setPriceDigits(
+            digits,
+        );
     }
 
     async function handleSubmit(
-        event: FormEvent<HTMLFormElement>,
+        event:
+            FormEvent<HTMLFormElement>,
     ) {
         event.preventDefault();
 
-        setFormError("");
+        setFormError(
+            "",
+        );
 
-        const normalizedName = name.trim();
+        const normalizedName =
+            name.trim();
 
-        if (normalizedName.length < 2) {
+        if (
+            normalizedName.length <
+            2
+        ) {
             setFormError(
                 "Informe o nome do serviço.",
             );
@@ -93,13 +212,17 @@ export function EditServiceDialog({
             return;
         }
 
-        const defaultPriceCents = Number(
-            priceDigits,
-        );
+        const defaultPriceCents =
+            Number(
+                priceDigits,
+            );
 
         if (
-            !Number.isInteger(defaultPriceCents) ||
-            defaultPriceCents <= 0
+            !Number.isInteger(
+                defaultPriceCents,
+            ) ||
+            defaultPriceCents <=
+                0
         ) {
             setFormError(
                 "Informe um preço válido.",
@@ -109,19 +232,28 @@ export function EditServiceDialog({
         }
 
         try {
-            await updateService.mutateAsync({
-                serviceId: service.id,
+            await updateService
+                .mutateAsync({
+                    serviceId:
+                        service.id,
 
-                input: {
-                    name: normalizedName,
-                    defaultPriceCents,
-                },
-            });
+                    input: {
+                        name:
+                            normalizedName,
 
-            setOpen(false);
+                        defaultPriceCents,
+
+                        priceType,
+                    },
+                });
+
+            setOpen(
+                false,
+            );
         } catch (error) {
             setFormError(
-                error instanceof Error
+                error instanceof
+                    Error
                     ? error.message
                     : "Não foi possível atualizar o serviço.",
             );
@@ -134,26 +266,34 @@ export function EditServiceDialog({
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={handleOpen}
+                onClick={
+                    handleOpen
+                }
             >
                 <Pencil className="mr-2 size-4" />
+
                 Editar
             </Button>
 
             <Dialog
                 open={open}
-                onOpenChange={handleOpenChange}
+                onOpenChange={
+                    handleOpenChange
+                }
             >
                 <DialogContent className="sm:max-w-md">
-                    <form onSubmit={handleSubmit}>
+                    <form
+                        onSubmit={
+                            handleSubmit
+                        }
+                    >
                         <DialogHeader>
                             <DialogTitle>
                                 Editar serviço
                             </DialogTitle>
 
                             <DialogDescription>
-                                Altere o nome ou o preço padrão
-                                deste serviço.
+                                Altere o nome, o tipo de preço ou o valor deste serviço.
                             </DialogDescription>
                         </DialogHeader>
 
@@ -168,15 +308,92 @@ export function EditServiceDialog({
 
                                 <Input
                                     id={`service-name-${service.id}`}
-                                    value={name}
-                                    maxLength={100}
-                                    disabled={
-                                        updateService.isPending
+                                    value={
+                                        name
                                     }
-                                    onChange={(event) =>
-                                        setName(event.target.value)
+                                    maxLength={
+                                        100
+                                    }
+                                    disabled={
+                                        updateService
+                                            .isPending
+                                    }
+                                    onChange={(
+                                        event,
+                                    ) =>
+                                        setName(
+                                            event
+                                                .target
+                                                .value,
+                                        )
                                     }
                                 />
+                            </div>
+
+                            <div className="space-y-3">
+                                <div>
+                                    <p className="text-sm font-medium">
+                                        Tipo de preço
+                                    </p>
+
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                        Escolha como o valor será apresentado para a cliente.
+                                    </p>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button
+                                        type="button"
+                                        disabled={
+                                            updateService
+                                                .isPending
+                                        }
+                                        onClick={() =>
+                                            setPriceType(
+                                                SERVICE_PRICE_TYPES.FIXED,
+                                            )
+                                        }
+                                        className={`rounded-xl border px-4 py-3 text-left transition ${
+                                            isFixedPrice
+                                                ? "border-[#304229] bg-[#304229]/5 ring-1 ring-[#304229]"
+                                                : "border-border bg-background hover:bg-muted/40"
+                                        }`}
+                                    >
+                                        <span className="block text-sm font-semibold">
+                                            Valor fixo
+                                        </span>
+
+                                        <span className="mt-1 block text-xs text-muted-foreground">
+                                            Ex: R$ 250,00
+                                        </span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        disabled={
+                                            updateService
+                                                .isPending
+                                        }
+                                        onClick={() =>
+                                            setPriceType(
+                                                SERVICE_PRICE_TYPES.STARTING_FROM,
+                                            )
+                                        }
+                                        className={`rounded-xl border px-4 py-3 text-left transition ${
+                                            !isFixedPrice
+                                                ? "border-[#304229] bg-[#304229]/5 ring-1 ring-[#304229]"
+                                                : "border-border bg-background hover:bg-muted/40"
+                                        }`}
+                                    >
+                                        <span className="block text-sm font-semibold">
+                                            A partir de
+                                        </span>
+
+                                        <span className="mt-1 block text-xs text-muted-foreground">
+                                            Ex: A partir de R$ 500
+                                        </span>
+                                    </button>
+                                </div>
                             </div>
 
                             <div className="space-y-2">
@@ -184,34 +401,62 @@ export function EditServiceDialog({
                                     htmlFor={`service-price-${service.id}`}
                                     className="text-sm font-medium"
                                 >
-                                    Preço
+                                    {isFixedPrice
+                                        ? "Preço"
+                                        : "Valor inicial"}
                                 </label>
 
                                 <Input
                                     id={`service-price-${service.id}`}
                                     type="text"
                                     inputMode="numeric"
-                                    value={formattedPrice}
-                                    disabled={
-                                        updateService.isPending
+                                    value={
+                                        formattedPrice
                                     }
-                                    onChange={(event) =>
+                                    disabled={
+                                        updateService
+                                            .isPending
+                                    }
+                                    onChange={(
+                                        event,
+                                    ) =>
                                         handlePriceChange(
-                                            event.target.value,
+                                            event
+                                                .target
+                                                .value,
                                         )
                                     }
                                 />
 
                                 <p className="text-xs text-muted-foreground">
-                                    Este é o preço padrão do
-                                    serviço.
+                                    {isFixedPrice
+                                        ? "Este é o valor fixo do serviço."
+                                        : "Este é o valor inicial apresentado para a cliente."}
                                 </p>
+
+                                {!isFixedPrice &&
+                                    formattedPrice && (
+                                        <div className="rounded-xl border border-[#304229]/15 bg-[#304229]/5 px-4 py-3">
+                                            <p className="text-xs text-muted-foreground">
+                                                Visualização para a cliente
+                                            </p>
+
+                                            <p className="mt-1 text-sm font-semibold text-[#304229]">
+                                                A partir de{" "}
+                                                {
+                                                    formattedPrice
+                                                }
+                                            </p>
+                                        </div>
+                                    )}
                             </div>
 
                             {formError && (
                                 <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3">
                                     <p className="text-sm text-red-700">
-                                        {formError}
+                                        {
+                                            formError
+                                        }
                                     </p>
                                 </div>
                             )}
@@ -222,10 +467,13 @@ export function EditServiceDialog({
                                 type="button"
                                 variant="outline"
                                 disabled={
-                                    updateService.isPending
+                                    updateService
+                                        .isPending
                                 }
                                 onClick={() =>
-                                    handleOpenChange(false)
+                                    handleOpenChange(
+                                        false,
+                                    )
                                 }
                             >
                                 Cancelar
@@ -234,13 +482,16 @@ export function EditServiceDialog({
                             <Button
                                 type="submit"
                                 disabled={
-                                    updateService.isPending
+                                    updateService
+                                        .isPending
                                 }
                                 className="bg-[#304229] text-white hover:bg-[#24351F]"
                             >
-                                {updateService.isPending ? (
+                                {updateService
+                                    .isPending ? (
                                     <>
                                         <Loader2 className="mr-2 size-4 animate-spin" />
+
                                         Salvando...
                                     </>
                                 ) : (

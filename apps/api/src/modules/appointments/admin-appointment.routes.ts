@@ -32,73 +32,105 @@ const adminOnly = [
 
 export const adminAppointmentRoutes:
   FastifyPluginAsync =
-    async (app) => {
-      /*
-       * GET
-       * /api/v1/admin/appointments
-       */
-      app.get(
-        "/",
-        {
-          preHandler:
-            adminOnly,
-        },
-        listAdminAppointmentsController,
-      );
+  async (
+    app,
+  ) => {
+    /*
+     * =================================
+     * AGENDA DO DIA
+     * =================================
+     *
+     * GET
+     * /api/v1/admin/appointments
+     */
+    app.get(
+      "/",
+      {
+        preHandler:
+          adminOnly,
+      },
+      listAdminAppointmentsController,
+    );
 
-      /*
-       * PENDING_APPROVAL
-       * ↓
-       * CONFIRMED
-       */
-      app.patch(
-        "/:appointmentId/confirm",
-        {
-          preHandler:
-            adminOnly,
-        },
-        confirmAdminAppointmentController,
-      );
+    /*
+     * =================================
+     * CONFIRMAR
+     * =================================
+     *
+     * PENDING_APPROVAL
+     * ↓
+     * CONFIRMED
+     */
+    app.patch(
+      "/:appointmentId/confirm",
+      {
+        preHandler:
+          adminOnly,
+      },
+      confirmAdminAppointmentController,
+    );
 
-      /*
-       * PENDING_APPROVAL
-       * ↓
-       * REJECTED
-       */
-      app.patch(
-        "/:appointmentId/reject",
-        {
-          preHandler:
-            adminOnly,
-        },
-        rejectAdminAppointmentController,
-      );
+    /*
+     * =================================
+     * RECUSAR
+     * =================================
+     *
+     * PENDING_APPROVAL
+     * ↓
+     * REJECTED
+     */
+    app.patch(
+      "/:appointmentId/reject",
+      {
+        preHandler:
+          adminOnly,
+      },
+      rejectAdminAppointmentController,
+    );
 
-      /*
-       * CONFIRMED
-       * ↓
-       * IN_PROGRESS
-       */
-      app.patch(
-        "/:appointmentId/start",
-        {
-          preHandler:
-            adminOnly,
-        },
-        startAdminAppointmentController,
-      );
+    /*
+     * =================================
+     * INICIAR
+     * =================================
+     *
+     * CONFIRMED
+     * ↓
+     * IN_PROGRESS
+     */
+    app.patch(
+      "/:appointmentId/start",
+      {
+        preHandler:
+          adminOnly,
+      },
+      startAdminAppointmentController,
+    );
 
-      /*
-       * IN_PROGRESS
-       * ↓
-       * COMPLETED
-       */
-      app.patch(
-        "/:appointmentId/complete",
-        {
-          preHandler:
-            adminOnly,
-        },
-        completeAdminAppointmentController,
-      );
-    };
+    /*
+     * =================================
+     * CONCLUIR
+     * =================================
+     *
+     * IN_PROGRESS
+     * ↓
+     * COMPLETED
+     *
+     * Serviço FIXED:
+     *
+     * PATCH sem body.
+     *
+     * Serviço STARTING_FROM:
+     *
+     * {
+     *   "finalPriceCents": 65000
+     * }
+     */
+    app.patch(
+      "/:appointmentId/complete",
+      {
+        preHandler:
+          adminOnly,
+      },
+      completeAdminAppointmentController,
+    );
+  };

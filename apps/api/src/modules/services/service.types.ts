@@ -1,46 +1,81 @@
 import type {
+  ServicePriceType,
+} from "@priscila/shared";
+
+import type {
   Timestamp,
 } from "firebase-admin/firestore";
 
 export type ServicePhaseDocument = {
-  id: string;
+  id:
+    string;
 
-  name: string;
+  name:
+    string;
 
-  durationMinutes: number;
+  durationMinutes:
+    number;
 
-  occupiesProfessional: boolean;
+  occupiesProfessional:
+    boolean;
 
-  order: number;
+  order:
+    number;
 };
 
 export type ServiceDocument = {
-  salonId: string;
+  salonId:
+    string;
 
-  name: string;
-  description: string | null;
-  category: string;
+  name:
+    string;
 
-  durationMinutes: number;
-  defaultPriceCents: number;
+  description:
+    string | null;
+
+  category:
+    string;
+
+  durationMinutes:
+    number;
+
+  defaultPriceCents:
+    number;
 
   /*
-   * Opcional por enquanto para manter
-   * compatibilidade com serviços que
-   * já existem no Firestore.
+   * Opcional no documento porque
+   * serviços antigos do Firestore
+   * ainda não possuem esse campo.
    *
-   * Documentos antigos não possuem
-   * esse campo ainda.
+   * O Mapper fará:
+   *
+   * undefined
+   * ↓
+   * FIXED
    */
-  phases?: ServicePhaseDocument[];
+  priceType?:
+    ServicePriceType;
 
-  active: boolean;
+  /*
+   * Opcional para manter
+   * compatibilidade com serviços
+   * antigos.
+   */
+  phases?:
+    ServicePhaseDocument[];
 
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  active:
+    boolean;
+
+  createdAt:
+    Timestamp;
+
+  updatedAt:
+    Timestamp;
 };
 
 export type ServiceEntity =
   ServiceDocument & {
-    id: string;
+    id:
+      string;
   };

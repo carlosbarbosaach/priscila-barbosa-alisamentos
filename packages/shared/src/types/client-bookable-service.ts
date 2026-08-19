@@ -2,20 +2,57 @@ import type {
   AppointmentPriceSource,
 } from "../enums/appointment-price-source.js";
 
+import type {
+  ServicePriceType,
+} from "./service.js";
+
 export type ClientBookableService = {
-  id: string;
+  id:
+    string;
 
-  name: string;
+  name:
+    string;
 
-  description: string | null;
+  description:
+    string | null;
 
-  category: string;
+  category:
+    string;
 
-  durationMinutes: number;
+  durationMinutes:
+    number;
 
-  defaultPriceCents: number;
+  /*
+   * Valor padrão/base cadastrado
+   * no serviço.
+   */
+  defaultPriceCents:
+    number;
 
-  priceCents: number;
+  /*
+   * Define como o preço padrão
+   * deve ser apresentado:
+   *
+   * FIXED
+   * → R$ 250,00
+   *
+   * STARTING_FROM
+   * → A partir de R$ 500,00
+   */
+  priceType:
+    ServicePriceType;
+
+  /*
+   * Valor efetivamente apresentado
+   * para esta cliente.
+   *
+   * Pode ser:
+   *
+   * - preço padrão;
+   * - preço especial da cliente.
+   */
+  priceCents:
+    number;
 
   priceSource:
     AppointmentPriceSource;

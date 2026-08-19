@@ -1,9 +1,12 @@
 "use client";
 
 import {
+  APPOINTMENT_PRICE_SOURCE,
   APPOINTMENT_STATUS,
+  SERVICE_PRICE_TYPES,
   type Appointment,
   type AppointmentStatus,
+  type ServicePriceType,
 } from "@priscila/shared";
 
 import {
@@ -33,6 +36,10 @@ import {
 } from "@/components/ui/button";
 
 import {
+  CompleteAppointmentDialog,
+} from "@/features/appointments/components/CompleteAppointmentDialog";
+
+import {
   RejectAppointmentDialog,
 } from "@/features/appointments/components/RejectAppointmentDialog";
 
@@ -52,6 +59,10 @@ import {
   useStartAppointment,
 } from "@/features/appointments/hooks/useStartAppointment";
 
+import {
+  useServices,
+} from "@/features/services/hooks/useServices";
+
 const SALON_TIME_ZONE =
   "America/Sao_Paulo";
 
@@ -59,9 +70,15 @@ const timeFormatter =
   new Intl.DateTimeFormat(
     "pt-BR",
     {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
+      hour:
+        "2-digit",
+
+      minute:
+        "2-digit",
+
+      hour12:
+        false,
+
       timeZone:
         SALON_TIME_ZONE,
     },
@@ -71,13 +88,17 @@ const currencyFormatter =
   new Intl.NumberFormat(
     "pt-BR",
     {
-      style: "currency",
-      currency: "BRL",
+      style:
+        "currency",
+
+      currency:
+        "BRL",
     },
   );
 
 type AdminAgendaPageContentProps = {
-  initialDateKey?: string;
+  initialDateKey?:
+  string;
 };
 
 function getTodayDateKey() {
@@ -85,35 +106,51 @@ function getTodayDateKey() {
     new Intl.DateTimeFormat(
       "en-CA",
       {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
+        year:
+          "numeric",
+
+        month:
+          "2-digit",
+
+        day:
+          "2-digit",
+
         timeZone:
           SALON_TIME_ZONE,
       },
     );
 
   const parts =
-    formatter.formatToParts(
-      new Date(),
-    );
+    formatter
+      .formatToParts(
+        new Date(),
+      );
 
   const year =
     parts.find(
-      (part) =>
-        part.type === "year",
+      (
+        part,
+      ) =>
+        part.type ===
+        "year",
     )?.value;
 
   const month =
     parts.find(
-      (part) =>
-        part.type === "month",
+      (
+        part,
+      ) =>
+        part.type ===
+        "month",
     )?.value;
 
   const day =
     parts.find(
-      (part) =>
-        part.type === "day",
+      (
+        part,
+      ) =>
+        part.type ===
+        "day",
     )?.value;
 
   if (
@@ -152,8 +189,12 @@ function isValidDateKey(
     day,
   ] =
     value
-      .split("-")
-      .map(Number);
+      .split(
+        "-",
+      )
+      .map(
+        Number,
+      );
 
   if (
     !year ||
@@ -167,24 +208,29 @@ function isValidDateKey(
     new Date(
       Date.UTC(
         year,
-        month - 1,
+        month -
+        1,
         day,
       ),
     );
 
   return (
     date.getUTCFullYear() ===
-      year &&
+    year &&
     date.getUTCMonth() ===
-      month - 1 &&
+    month -
+    1 &&
     date.getUTCDate() ===
-      day
+    day
   );
 }
 
 function shiftDateKey(
-  dateKey: string,
-  amount: number,
+  dateKey:
+    string,
+
+  amount:
+    number,
 ) {
   const [
     year,
@@ -192,21 +238,26 @@ function shiftDateKey(
     day,
   ] =
     dateKey
-      .split("-")
-      .map(Number);
+      .split(
+        "-",
+      )
+      .map(
+        Number,
+      );
 
   const date =
     new Date(
       Date.UTC(
         year,
-        month - 1,
+        month -
+        1,
         day,
       ),
     );
 
   date.setUTCDate(
     date.getUTCDate() +
-      amount,
+    amount,
   );
 
   const nextYear =
@@ -217,7 +268,7 @@ function shiftDateKey(
   const nextMonth =
     String(
       date.getUTCMonth() +
-        1,
+      1,
     ).padStart(
       2,
       "0",
@@ -235,7 +286,8 @@ function shiftDateKey(
 }
 
 function formatSelectedDate(
-  dateKey: string,
+  dateKey:
+    string,
 ) {
   const [
     year,
@@ -243,14 +295,19 @@ function formatSelectedDate(
     day,
   ] =
     dateKey
-      .split("-")
-      .map(Number);
+      .split(
+        "-",
+      )
+      .map(
+        Number,
+      );
 
   const date =
     new Date(
       Date.UTC(
         year,
-        month - 1,
+        month -
+        1,
         day,
         12,
       ),
@@ -259,10 +316,18 @@ function formatSelectedDate(
   return new Intl.DateTimeFormat(
     "pt-BR",
     {
-      weekday: "long",
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
+      weekday:
+        "long",
+
+      day:
+        "2-digit",
+
+      month:
+        "long",
+
+      year:
+        "numeric",
+
       timeZone:
         "UTC",
     },
@@ -272,7 +337,8 @@ function formatSelectedDate(
 }
 
 function capitalizeFirstLetter(
-  value: string,
+  value:
+    string,
 ) {
   if (!value) {
     return value;
@@ -280,17 +346,24 @@ function capitalizeFirstLetter(
 
   return (
     value
-      .charAt(0)
+      .charAt(
+        0,
+      )
       .toUpperCase() +
-    value.slice(1)
+    value.slice(
+      1,
+    )
   );
 }
 
 function formatTime(
-  value: string,
+  value:
+    string,
 ) {
   const date =
-    new Date(value);
+    new Date(
+      value,
+    );
 
   if (
     Number.isNaN(
@@ -307,11 +380,13 @@ function formatTime(
 }
 
 function formatPrice(
-  priceCents: number,
+  priceCents:
+    number,
 ) {
   return currencyFormatter
     .format(
-      priceCents / 100,
+      priceCents /
+      100,
     );
 }
 
@@ -319,7 +394,9 @@ function getAppointmentStatusConfig(
   status:
     AppointmentStatus,
 ) {
-  switch (status) {
+  switch (
+  status
+  ) {
     case APPOINTMENT_STATUS
       .PENDING_APPROVAL:
       return {
@@ -435,7 +512,9 @@ export function AdminAgendaPageContent({
     confirmingAppointmentId,
     setConfirmingAppointmentId,
   ] =
-    useState<string | null>(
+    useState<
+      string | null
+    >(
       null,
     );
 
@@ -443,7 +522,9 @@ export function AdminAgendaPageContent({
     startingAppointmentId,
     setStartingAppointmentId,
   ] =
-    useState<string | null>(
+    useState<
+      string | null
+    >(
       null,
     );
 
@@ -451,7 +532,9 @@ export function AdminAgendaPageContent({
     completingAppointmentId,
     setCompletingAppointmentId,
   ] =
-    useState<string | null>(
+    useState<
+      string | null
+    >(
       null,
     );
 
@@ -459,7 +542,19 @@ export function AdminAgendaPageContent({
     appointmentToReject,
     setAppointmentToReject,
   ] =
-    useState<Appointment | null>(
+    useState<
+      Appointment | null
+    >(
+      null,
+    );
+
+  const [
+    appointmentToComplete,
+    setAppointmentToComplete,
+  ] =
+    useState<
+      Appointment | null
+    >(
       null,
     );
 
@@ -467,22 +562,38 @@ export function AdminAgendaPageContent({
     actionError,
     setActionError,
   ] =
-    useState<string | null>(
+    useState<
+      string | null
+    >(
       null,
     );
 
   const {
     data:
-      appointments = [],
+    appointments = [],
 
     isLoading,
+
     isError,
+
     refetch,
+
     isFetching,
   } =
     useAdminAppointments(
       dateKey,
     );
+
+  /*
+   * Usado apenas como fallback
+   * para agendamentos antigos
+   * sem servicePriceTypeSnapshot.
+   */
+  const {
+    data:
+    services = [],
+  } =
+    useServices();
 
   const confirmMutation =
     useConfirmAppointment();
@@ -505,9 +616,88 @@ export function AdminAgendaPageContent({
     );
 
   const isActionPending =
-    confirmMutation.isPending ||
-    startMutation.isPending ||
-    completeMutation.isPending;
+    confirmMutation
+      .isPending ||
+    startMutation
+      .isPending ||
+    completeMutation
+      .isPending;
+
+  function resolveAppointmentPriceType(
+    appointment:
+      Appointment,
+  ): ServicePriceType | null {
+    /*
+     * Agendamento novo:
+     * utiliza snapshot histórico.
+     */
+    if (
+      appointment
+        .servicePriceTypeSnapshot
+    ) {
+      return appointment
+        .servicePriceTypeSnapshot;
+    }
+
+    /*
+     * Agendamento antigo:
+     * consulta temporariamente
+     * o serviço atual.
+     */
+    const service =
+      services.find(
+        (
+          currentService,
+        ) =>
+          currentService.id ===
+          appointment.serviceId,
+      );
+
+    return (
+      service
+        ?.priceType ??
+      null
+    );
+  }
+
+  function isVariablePriceAppointment(
+    appointment:
+      Appointment,
+  ) {
+    /*
+     * Preço especial da cliente
+     * já é um preço definido.
+     */
+    if (
+      appointment.priceSource ===
+      APPOINTMENT_PRICE_SOURCE
+        .CLIENT_SPECIAL
+    ) {
+      return false;
+    }
+
+    const priceType =
+      resolveAppointmentPriceType(
+        appointment,
+      );
+
+    /*
+     * null:
+     * appointment legado cujo serviço
+     * também não foi encontrado.
+     *
+     * Por segurança pedimos valor final
+     * em vez de concluir com preço
+     * possivelmente incorreto.
+     */
+    return (
+      priceType ===
+      SERVICE_PRICE_TYPES
+        .STARTING_FROM ||
+      priceType ===
+      null
+    );
+  }
 
   function clearActionState() {
     setActionError(
@@ -517,13 +707,19 @@ export function AdminAgendaPageContent({
     setAppointmentToReject(
       null,
     );
+
+    setAppointmentToComplete(
+      null,
+    );
   }
 
   function handlePreviousDay() {
     clearActionState();
 
     setDateKey(
-      (currentDate) =>
+      (
+        currentDate,
+      ) =>
         shiftDateKey(
           currentDate,
           -1,
@@ -535,7 +731,9 @@ export function AdminAgendaPageContent({
     clearActionState();
 
     setDateKey(
-      (currentDate) =>
+      (
+        currentDate,
+      ) =>
         shiftDateKey(
           currentDate,
           1,
@@ -552,7 +750,8 @@ export function AdminAgendaPageContent({
   }
 
   function handleDateChange(
-    value: string,
+    value:
+      string,
   ) {
     if (
       !isValidDateKey(
@@ -575,7 +774,8 @@ export function AdminAgendaPageContent({
    * CONFIRMED
    */
   async function handleConfirmAppointment(
-    appointmentId: string,
+    appointmentId:
+      string,
   ) {
     if (
       isActionPending
@@ -591,6 +791,10 @@ export function AdminAgendaPageContent({
       null,
     );
 
+    setAppointmentToComplete(
+      null,
+    );
+
     setConfirmingAppointmentId(
       appointmentId,
     );
@@ -600,14 +804,14 @@ export function AdminAgendaPageContent({
         .mutateAsync(
           appointmentId,
         );
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Não foi possível confirmar o agendamento.";
-
+    } catch (
+    error
+    ) {
       setActionError(
-        message,
+        error instanceof
+          Error
+          ? error.message
+          : "Não foi possível confirmar o agendamento.",
       );
     } finally {
       setConfirmingAppointmentId(
@@ -622,7 +826,8 @@ export function AdminAgendaPageContent({
    * IN_PROGRESS
    */
   async function handleStartAppointment(
-    appointmentId: string,
+    appointmentId:
+      string,
   ) {
     if (
       isActionPending
@@ -643,14 +848,14 @@ export function AdminAgendaPageContent({
         .mutateAsync(
           appointmentId,
         );
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Não foi possível iniciar o atendimento.";
-
+    } catch (
+    error
+    ) {
       setActionError(
-        message,
+        error instanceof
+          Error
+          ? error.message
+          : "Não foi possível iniciar o atendimento.",
       );
     } finally {
       setStartingAppointmentId(
@@ -665,7 +870,8 @@ export function AdminAgendaPageContent({
    * COMPLETED
    */
   async function handleCompleteAppointment(
-    appointmentId: string,
+    appointment:
+      Appointment,
   ) {
     if (
       isActionPending
@@ -677,23 +883,45 @@ export function AdminAgendaPageContent({
       null,
     );
 
+    /*
+     * Serviço "A partir de"
+     * precisa informar o valor
+     * final antes de concluir.
+     */
+    if (
+      isVariablePriceAppointment(
+        appointment,
+      )
+    ) {
+      setAppointmentToComplete(
+        appointment,
+      );
+
+      return;
+    }
+
+    /*
+     * FIXED / CLIENT_SPECIAL
+     * continua concluindo direto.
+     */
     setCompletingAppointmentId(
-      appointmentId,
+      appointment.id,
     );
 
     try {
       await completeMutation
-        .mutateAsync(
-          appointmentId,
-        );
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Não foi possível concluir o atendimento.";
-
+        .mutateAsync({
+          appointmentId:
+            appointment.id,
+        });
+    } catch (
+    error
+    ) {
       setActionError(
-        message,
+        error instanceof
+          Error
+          ? error.message
+          : "Não foi possível concluir o atendimento.",
       );
     } finally {
       setCompletingAppointmentId(
@@ -703,7 +931,8 @@ export function AdminAgendaPageContent({
   }
 
   function handleOpenRejectDialog(
-    appointment: Appointment,
+    appointment:
+      Appointment,
   ) {
     if (
       isActionPending
@@ -712,6 +941,10 @@ export function AdminAgendaPageContent({
     }
 
     setActionError(
+      null,
+    );
+
+    setAppointmentToComplete(
       null,
     );
 
@@ -786,7 +1019,8 @@ export function AdminAgendaPageContent({
                 event,
               ) =>
                 handleDateChange(
-                  event.target
+                  event
+                    .target
                     .value,
                 )
               }
@@ -843,7 +1077,7 @@ export function AdminAgendaPageContent({
                 <span className="rounded-full border border-[#E5DED1] bg-white px-3 py-1.5 text-xs font-semibold text-[#62685E]">
                   {appointments.length}{" "}
                   {appointments.length ===
-                  1
+                    1
                     ? "agendamento"
                     : "agendamentos"}
                 </span>
@@ -864,7 +1098,9 @@ export function AdminAgendaPageContent({
               </p>
 
               <p className="mt-1 text-sm leading-6">
-                {actionError}
+                {
+                  actionError
+                }
               </p>
             </div>
           </div>
@@ -936,6 +1172,7 @@ export function AdminAgendaPageContent({
                       <RefreshCw
                         className={[
                           "mr-2 size-4",
+
                           isFetching
                             ? "animate-spin"
                             : "",
@@ -954,7 +1191,7 @@ export function AdminAgendaPageContent({
           {!isLoading &&
             !isError &&
             appointments.length ===
-              0 && (
+            0 && (
               <div className="p-5 sm:p-6">
                 <div className="flex min-h-[300px] items-center justify-center rounded-2xl border border-dashed border-[#D9D2C5] bg-[#FBF9F4] px-6 py-12 text-center">
                   <div className="max-w-md">
@@ -977,7 +1214,7 @@ export function AdminAgendaPageContent({
           {!isLoading &&
             !isError &&
             appointments.length >
-              0 && (
+            0 && (
               <div className="divide-y divide-[#EAE4D8]">
                 {appointments.map(
                   (
@@ -1023,6 +1260,11 @@ export function AdminAgendaPageContent({
                       completingAppointmentId ===
                       appointment.id;
 
+                    const variablePrice =
+                      isVariablePriceAppointment(
+                        appointment,
+                      );
+
                     return (
                       <article
                         key={
@@ -1035,6 +1277,7 @@ export function AdminAgendaPageContent({
                           <span
                             className={[
                               "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold",
+
                               status.className,
                             ].join(
                               " ",
@@ -1081,7 +1324,8 @@ export function AdminAgendaPageContent({
 
                               <p className="mt-0.5 text-lg font-bold text-[#20241D]">
                                 {formatTime(
-                                  appointment.startsAt,
+                                  appointment
+                                    .startsAt,
                                 )}
                               </p>
                             </div>
@@ -1101,13 +1345,15 @@ export function AdminAgendaPageContent({
 
                                 <h3 className="mt-1 truncate font-semibold text-[#20241D]">
                                   {
-                                    appointment.clientNameSnapshot
+                                    appointment
+                                      .clientNameSnapshot
                                   }
                                 </h3>
 
                                 <p className="mt-1 text-sm text-[#73776D]">
                                   {
-                                    appointment.clientPhoneSnapshot
+                                    appointment
+                                      .clientPhoneSnapshot
                                   }
                                 </p>
                               </div>
@@ -1128,13 +1374,15 @@ export function AdminAgendaPageContent({
 
                                 <p className="mt-1 truncate font-semibold text-[#20241D]">
                                   {
-                                    appointment.serviceNameSnapshot
+                                    appointment
+                                      .serviceNameSnapshot
                                   }
                                 </p>
 
                                 <p className="mt-1 text-sm text-[#73776D]">
                                   {
-                                    appointment.durationMinutes
+                                    appointment
+                                      .durationMinutes
                                   }{" "}
                                   min
                                 </p>
@@ -1143,14 +1391,26 @@ export function AdminAgendaPageContent({
                           </div>
 
                           {/* VALOR */}
-                          <div className="shrink-0 lg:min-w-[130px] lg:text-right">
+                          <div className="shrink-0 lg:min-w-[145px] lg:text-right">
                             <p className="text-xs font-medium uppercase tracking-wide text-[#8A8E84]">
-                              Valor
+                              {variablePrice
+                                ? isCompleted
+                                  ? "Valor final"
+                                  : "Valor inicial"
+                                : "Valor"}
                             </p>
+
+                            {variablePrice &&
+                              !isCompleted && (
+                                <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#788273]">
+                                  A partir de
+                                </p>
+                              )}
 
                             <p className="mt-1 text-lg font-semibold text-[#304229]">
                               {formatPrice(
-                                appointment.chargedPriceCents,
+                                appointment
+                                  .chargedPriceCents,
                               )}
                             </p>
                           </div>
@@ -1169,7 +1429,8 @@ export function AdminAgendaPageContent({
 
                               <p className="mt-1 text-sm leading-6 text-[#6E554F]">
                                 {
-                                  appointment.rejectionReason
+                                  appointment
+                                    .rejectionReason
                                 }
                               </p>
                             </div>
@@ -1259,7 +1520,7 @@ export function AdminAgendaPageContent({
                               }
                               onClick={() =>
                                 void handleCompleteAppointment(
-                                  appointment.id,
+                                  appointment,
                                 )
                               }
                               className="bg-[#465B36] text-white hover:bg-[#304229]"
@@ -1272,7 +1533,9 @@ export function AdminAgendaPageContent({
 
                               {isCompleting
                                 ? "Concluindo..."
-                                : "Concluir atendimento"}
+                                : variablePrice
+                                  ? "Informar valor e concluir"
+                                  : "Concluir atendimento"}
                             </Button>
                           </div>
                         )}
@@ -1299,6 +1562,27 @@ export function AdminAgendaPageContent({
           ) => {
             if (!open) {
               setAppointmentToReject(
+                null,
+              );
+            }
+          }}
+        />
+      )}
+
+      {/* MODAL VALOR FINAL */}
+      {appointmentToComplete && (
+        <CompleteAppointmentDialog
+          key={
+            appointmentToComplete.id
+          }
+          appointment={
+            appointmentToComplete
+          }
+          onOpenChange={(
+            open,
+          ) => {
+            if (!open) {
+              setAppointmentToComplete(
                 null,
               );
             }

@@ -6,6 +6,9 @@ import type {
 import {
   AdminAppointmentConsistencyError,
   AdminAppointmentDecisionService,
+  AdminAppointmentFinalPriceBelowBaseError,
+  AdminAppointmentFinalPriceRequiredError,
+  AdminAppointmentInvalidFinalPriceError,
   AdminAppointmentInvalidStatusError,
   AdminAppointmentNotFoundError,
 } from "./admin-appointment-decision.service.js";
@@ -17,6 +20,7 @@ import {
 import {
   adminAppointmentListQuerySchema,
   adminAppointmentParamsSchema,
+  completeAdminAppointmentSchema,
   rejectAdminAppointmentSchema,
 } from "./admin-appointment.schema.js";
 
@@ -40,6 +44,10 @@ function getSalonId(
 }
 
 /*
+ * =================================
+ * LISTAR AGENDA
+ * =================================
+ *
  * GET
  * /api/v1/admin/appointments
  */
@@ -62,9 +70,10 @@ export async function listAdminAppointmentsController(
   }
 
   const parsedQuery =
-    adminAppointmentListQuerySchema.safeParse(
-      request.query,
-    );
+    adminAppointmentListQuerySchema
+      .safeParse(
+        request.query,
+      );
 
   if (!parsedQuery.success) {
     return reply
@@ -74,7 +83,8 @@ export async function listAdminAppointmentsController(
           "Dados da consulta da agenda inválidos.",
 
         issues:
-          parsedQuery.error
+          parsedQuery
+            .error
             .issues,
       });
   }
@@ -86,7 +96,8 @@ export async function listAdminAppointmentsController(
           salonId,
 
           dateKey:
-            parsedQuery.data
+            parsedQuery
+              .data
               .dateKey,
         });
 
@@ -120,6 +131,10 @@ export async function listAdminAppointmentsController(
 }
 
 /*
+ * =================================
+ * CONFIRMAR
+ * =================================
+ *
  * PENDING_APPROVAL
  * ↓
  * CONFIRMED
@@ -136,6 +151,10 @@ export async function confirmAdminAppointmentController(
 }
 
 /*
+ * =================================
+ * INICIAR ATENDIMENTO
+ * =================================
+ *
  * CONFIRMED
  * ↓
  * IN_PROGRESS
@@ -152,22 +171,158 @@ export async function startAdminAppointmentController(
 }
 
 /*
+ * =================================
+ * CONCLUIR ATENDIMENTO
+ * =================================
+ *
  * IN_PROGRESS
  * ↓
  * COMPLETED
+ *
+ * Serviço FIXED:
+ *
+ * PATCH sem body.
+ *
+ * Serviço STARTING_FROM:
+ *
+ * {
+ *   finalPriceCents: 65000
+ * }
  */
 export async function completeAdminAppointmentController(
   request: FastifyRequest,
   reply: FastifyReply,
 ) {
-  return executeAppointmentAction(
-    request,
-    reply,
-    "complete",
-  );
+  const salonId =
+    getSalonId(
+      request,
+    );
+
+  if (!salonId) {
+    return reply
+      .status(403)
+      .send({
+        message:
+          "Salão do usuário não identificado.",
+      });
+  }
+
+  const parsedParams =
+    adminAppointmentParamsSchema
+      .safeParse(
+        request.params,
+      );
+
+  if (!parsedParams.success) {
+    return reply
+      .status(400)
+      .send({
+        message:
+          "Parâmetros do agendamento inválidos.",
+
+        issues:
+          parsedParams
+            .error
+            .issues,
+      });
+  }
+
+  /*
+   * Serviço FIXED pode chamar
+   * PATCH sem body.
+   *
+   * Por isso usamos {} quando
+   * request.body não existir.
+   */
+  const parsedBody =
+    completeAdminAppointmentSchema
+      .safeParse(
+        request.body ??
+          {},
+      );
+
+  if (!parsedBody.success) {
+    return reply
+      .status(400)
+      .send({
+        message:
+          "Dados para conclusão do atendimento inválidos.",
+
+        issues:
+          parsedBody
+            .error
+            .issues,
+      });
+  }
+
+  /*
+   * IMPORTANTE:
+   *
+   * Com:
+   *
+   * exactOptionalPropertyTypes: true
+   *
+   * não podemos fazer:
+   *
+   * {
+   *   finalPriceCents: undefined
+   * }
+   *
+   * Quando não existir valor final,
+   * a propriedade deve simplesmente
+   * não existir no objeto.
+   */
+  const completeInput = {
+    salonId,
+
+    appointmentId:
+      parsedParams
+        .data
+        .appointmentId,
+
+    ...(
+      parsedBody
+        .data
+        .finalPriceCents !==
+      undefined
+        ? {
+            finalPriceCents:
+              parsedBody
+                .data
+                .finalPriceCents,
+          }
+        : {}
+    ),
+  };
+
+  try {
+    const appointmentEntity =
+      await adminAppointmentDecisionService
+        .complete(
+          completeInput,
+        );
+
+    const appointment =
+      mapAppointmentEntityToAppointment(
+        appointmentEntity,
+      );
+
+    return reply.send({
+      appointment,
+    });
+  } catch (error) {
+    return handleAdminAppointmentError(
+      error,
+      reply,
+    );
+  }
 }
 
 /*
+ * =================================
+ * RECUSAR
+ * =================================
+ *
  * PENDING_APPROVAL
  * ↓
  * REJECTED
@@ -191,9 +346,10 @@ export async function rejectAdminAppointmentController(
   }
 
   const parsedParams =
-    adminAppointmentParamsSchema.safeParse(
-      request.params,
-    );
+    adminAppointmentParamsSchema
+      .safeParse(
+        request.params,
+      );
 
   if (!parsedParams.success) {
     return reply
@@ -203,15 +359,17 @@ export async function rejectAdminAppointmentController(
           "Parâmetros do agendamento inválidos.",
 
         issues:
-          parsedParams.error
+          parsedParams
+            .error
             .issues,
       });
   }
 
   const parsedBody =
-    rejectAdminAppointmentSchema.safeParse(
-      request.body,
-    );
+    rejectAdminAppointmentSchema
+      .safeParse(
+        request.body,
+      );
 
   if (!parsedBody.success) {
     return reply
@@ -221,7 +379,8 @@ export async function rejectAdminAppointmentController(
           "Dados da recusa inválidos.",
 
         issues:
-          parsedBody.error
+          parsedBody
+            .error
             .issues,
       });
   }
@@ -233,11 +392,13 @@ export async function rejectAdminAppointmentController(
           salonId,
 
           appointmentId:
-            parsedParams.data
+            parsedParams
+              .data
               .appointmentId,
 
           rejectionReason:
-            parsedBody.data
+            parsedBody
+              .data
               .rejectionReason,
         });
 
@@ -259,12 +420,19 @@ export async function rejectAdminAppointmentController(
 
 type AppointmentAction =
   | "confirm"
-  | "start"
-  | "complete";
+  | "start";
 
 /*
- * Controller compartilhado pelas
- * ações sem body.
+ * =================================
+ * AÇÕES SEM BODY
+ * =================================
+ *
+ * Confirmar e iniciar continuam
+ * utilizando este controller
+ * compartilhado.
+ *
+ * Concluir não utiliza mais porque
+ * agora pode receber finalPriceCents.
  */
 async function executeAppointmentAction(
   request: FastifyRequest,
@@ -286,9 +454,10 @@ async function executeAppointmentAction(
   }
 
   const parsedParams =
-    adminAppointmentParamsSchema.safeParse(
-      request.params,
-    );
+    adminAppointmentParamsSchema
+      .safeParse(
+        request.params,
+      );
 
   if (!parsedParams.success) {
     return reply
@@ -298,7 +467,8 @@ async function executeAppointmentAction(
           "Parâmetros do agendamento inválidos.",
 
         issues:
-          parsedParams.error
+          parsedParams
+            .error
             .issues,
       });
   }
@@ -307,38 +477,23 @@ async function executeAppointmentAction(
     salonId,
 
     appointmentId:
-      parsedParams.data
+      parsedParams
+        .data
         .appointmentId,
   };
 
   try {
-    let appointmentEntity;
-
-    if (
+    const appointmentEntity =
       action ===
       "confirm"
-    ) {
-      appointmentEntity =
-        await adminAppointmentDecisionService
-          .confirm(
-            input,
-          );
-    } else if (
-      action ===
-      "start"
-    ) {
-      appointmentEntity =
-        await adminAppointmentDecisionService
-          .start(
-            input,
-          );
-    } else {
-      appointmentEntity =
-        await adminAppointmentDecisionService
-          .complete(
-            input,
-          );
-    }
+        ? await adminAppointmentDecisionService
+            .confirm(
+              input,
+            )
+        : await adminAppointmentDecisionService
+            .start(
+              input,
+            );
 
     const appointment =
       mapAppointmentEntityToAppointment(
@@ -356,10 +511,18 @@ async function executeAppointmentAction(
   }
 }
 
+/*
+ * =================================
+ * ERROS
+ * =================================
+ */
 function handleAdminAppointmentError(
   error: unknown,
   reply: FastifyReply,
 ) {
+  /*
+   * Agendamento não encontrado.
+   */
   if (
     error instanceof
     AdminAppointmentNotFoundError
@@ -372,6 +535,9 @@ function handleAdminAppointmentError(
       });
   }
 
+  /*
+   * Status não permite a operação.
+   */
   if (
     error instanceof
     AdminAppointmentInvalidStatusError
@@ -384,6 +550,9 @@ function handleAdminAppointmentError(
       });
   }
 
+  /*
+   * Alteração concorrente.
+   */
   if (
     error instanceof
     AdminAppointmentConsistencyError
@@ -396,6 +565,56 @@ function handleAdminAppointmentError(
       });
   }
 
+  /*
+   * Serviço STARTING_FROM sem
+   * valor final informado.
+   */
+  if (
+    error instanceof
+    AdminAppointmentFinalPriceRequiredError
+  ) {
+    return reply
+      .status(400)
+      .send({
+        message:
+          error.message,
+      });
+  }
+
+  /*
+   * Valor final inválido.
+   */
+  if (
+    error instanceof
+    AdminAppointmentInvalidFinalPriceError
+  ) {
+    return reply
+      .status(400)
+      .send({
+        message:
+          error.message,
+      });
+  }
+
+  /*
+   * Valor final inferior ao
+   * valor inicial.
+   */
+  if (
+    error instanceof
+    AdminAppointmentFinalPriceBelowBaseError
+  ) {
+    return reply
+      .status(400)
+      .send({
+        message:
+          error.message,
+      });
+  }
+
+  /*
+   * Validações da recusa.
+   */
   if (
     error instanceof Error &&
     (

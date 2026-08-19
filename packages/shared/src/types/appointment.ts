@@ -6,6 +6,10 @@ import type {
   AppointmentStatus,
 } from "../enums/appointment-status.js";
 
+import type {
+  ServicePriceType,
+} from "./service.js";
+
 export type Appointment = {
   id: string;
 
@@ -24,31 +28,17 @@ export type Appointment = {
 
   /*
    * Horário efetivamente reservado.
-   *
-   * No shared usamos ISO string.
-   * O backend converterá Firestore
-   * Timestamp ↔ ISO.
    */
   startsAt: string;
   endsAt: string;
 
   /*
    * Snapshot da duração.
-   *
-   * Se futuramente o serviço mudar
-   * de 3h para 2h30, o agendamento
-   * antigo continua correto.
    */
   durationMinutes: number;
 
   /*
    * Snapshots da cliente.
-   *
-   * Mesmo que ela altere nome ou
-   * telefone posteriormente, o
-   * histórico daquele atendimento
-   * continua representando o momento
-   * em que foi agendado.
    */
   clientNameSnapshot: string;
   clientPhoneSnapshot: string;
@@ -59,33 +49,41 @@ export type Appointment = {
   serviceNameSnapshot: string;
 
   /*
-   * Preço efetivamente aplicado.
+   * Tipo de preço que o serviço
+   * possuía no momento do agendamento.
    *
-   * Nunca recalcularemos o histórico
-   * usando o preço atual do serviço.
+   * FIXED
+   * STARTING_FROM
+   *
+   * null:
+   * agendamento antigo criado antes
+   * deste campo existir.
+   */
+  servicePriceTypeSnapshot:
+    ServicePriceType | null;
+
+  /*
+   * Preço aplicado no momento
+   * da criação do agendamento.
+   *
+   * Para STARTING_FROM este valor
+   * representa inicialmente o
+   * valor base.
    */
   chargedPriceCents: number;
 
   /*
-   * Explica como chegamos ao preço:
-   *
    * SERVICE_DEFAULT
-   * ou
    * CLIENT_SPECIAL
    */
-  priceSource: AppointmentPriceSource;
+  priceSource:
+    AppointmentPriceSource;
 
-  /*
-   * Preenchido quando o salão
-   * recusa uma solicitação.
-   */
-  rejectionReason: string | null;
+  rejectionReason:
+    string | null;
 
-  /*
-   * Preenchido caso um agendamento
-   * seja posteriormente cancelado.
-   */
-  cancellationReason: string | null;
+  cancellationReason:
+    string | null;
 
   createdAt: string;
   updatedAt: string;

@@ -4,24 +4,19 @@ import {
 } from "@priscila/shared";
 
 /*
- * Configuração provisória da agenda.
- *
- * IMPORTANTE:
- * estas regras serão futuramente
- * substituídas pelas configurações
- * reais do salão.
+ * Configuração oficial da agenda
+ * PRISCILA BARBOSA ALISAMENTOS.
  */
 export const APPOINTMENT_CONFIG = {
     /*
      * Fuso horário oficial do salão.
      */
-    timeZone: "America/Sao_Paulo",
+    timeZone:
+        "America/Sao_Paulo",
 
     /*
-     * Dias da semana em que o salão
-     * atende provisoriamente.
-     *
      * JavaScript:
+     *
      * 0 = domingo
      * 1 = segunda
      * 2 = terça
@@ -40,62 +35,159 @@ export const APPOINTMENT_CONFIG = {
     ],
 
     /*
-     * Horário provisório de funcionamento.
-     */
-    openingTime: "08:00",
-
-    closingTime: "18:00",
-
-    /*
-     * Intervalo entre opções apresentadas
-     * para a cliente.
+     * =================================
+     * HORÁRIOS OFICIAIS
+     * =================================
      *
-     * Exemplo:
-     * 08:00
-     * 08:30
-     * 09:00
-     * 09:30
+     * Estes são horários de INÍCIO
+     * disponibilizados para a cliente.
+     *
+     * A duração de um atendimento
+     * anterior NÃO remove automaticamente
+     * outro horário desta lista.
      */
-    slotIntervalMinutes: 30,
+    startTimesByWeekDay: [
+        /*
+         * Domingo
+         */
+        [],
+
+        /*
+         * Segunda
+         */
+        [
+            "08:00",
+            "13:00",
+            "17:00",
+        ],
+
+        /*
+         * Terça
+         */
+        [
+            "08:00",
+            "13:00",
+            "17:00",
+        ],
+
+        /*
+         * Quarta
+         */
+        [
+            "08:00",
+            "13:00",
+            "17:00",
+        ],
+
+        /*
+         * Quinta
+         */
+        [
+            "08:00",
+            "13:00",
+            "17:00",
+        ],
+
+        /*
+         * Sexta
+         */
+        [
+            "08:00",
+            "13:00",
+            "17:00",
+        ],
+
+        /*
+         * Sábado
+         */
+        [
+            "07:00",
+            "08:00",
+            "13:00",
+            "17:00",
+        ],
+    ],
 
     /*
-     * Por enquanto consideramos
-     * apenas um atendimento simultâneo.
+     * Mantemos temporariamente estas
+     * propriedades porque outras partes
+     * do código atual ainda podem
+     * referenciá-las.
+     *
+     * Elas deixarão de determinar os
+     * horários mostrados à cliente.
      */
-    maxConcurrentAppointments: 1,
+    openingTime:
+        "07:00",
+
+    closingTime:
+        "20:00",
+
+    slotIntervalMinutes:
+        30,
+
+    /*
+     * A agenda continua trabalhando
+     * com uma solicitação por horário
+     * exato.
+     *
+     * A sobreposição causada pela
+     * DURAÇÃO será controlada
+     * manualmente pela Priscila.
+     */
+    maxConcurrentAppointments:
+        1,
 } as const;
 
 /*
- * Estados que ocupam a agenda.
+ * Estados que ocupam um HORÁRIO EXATO.
  *
- * PENDING_APPROVAL também bloqueia,
- * evitando duas clientes solicitarem
- * exatamente o mesmo horário enquanto
- * aguardam resposta da administração.
+ * IMPORTANTE:
+ *
+ * Depois da alteração do ConflictService,
+ * esses estados NÃO bloquearão mais
+ * horários diferentes apenas porque
+ * existe sobreposição de duração.
+ *
+ * Exemplo permitido:
+ *
+ * 07:00 → CONFIRMED
+ * 08:00 → pode ser solicitado
  */
 export const BLOCKING_APPOINTMENT_STATUSES:
     readonly AppointmentStatus[] = [
-        APPOINTMENT_STATUS.PENDING_APPROVAL,
-        APPOINTMENT_STATUS.CONFIRMED,
-        APPOINTMENT_STATUS.IN_PROGRESS,
+        APPOINTMENT_STATUS
+            .PENDING_APPROVAL,
+
+        APPOINTMENT_STATUS
+            .CONFIRMED,
+
+        APPOINTMENT_STATUS
+            .IN_PROGRESS,
     ];
 
 /*
- * Estados que NÃO devem impedir
- * um novo agendamento para aquele
- * período.
+ * Estados que não impedem
+ * novos agendamentos.
  */
 export const NON_BLOCKING_APPOINTMENT_STATUSES:
     readonly AppointmentStatus[] = [
-        APPOINTMENT_STATUS.REJECTED,
-        APPOINTMENT_STATUS.CANCELLED,
-        APPOINTMENT_STATUS.COMPLETED,
+        APPOINTMENT_STATUS
+            .REJECTED,
+
+        APPOINTMENT_STATUS
+            .CANCELLED,
+
+        APPOINTMENT_STATUS
+            .COMPLETED,
     ];
 
 export function isBlockingAppointmentStatus(
-    status: AppointmentStatus,
+    status:
+        AppointmentStatus,
 ): boolean {
-    return BLOCKING_APPOINTMENT_STATUSES.includes(
-        status,
-    );
+    return BLOCKING_APPOINTMENT_STATUSES
+        .includes(
+            status,
+        );
 }

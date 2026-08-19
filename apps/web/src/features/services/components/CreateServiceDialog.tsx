@@ -1,9 +1,24 @@
 "use client";
 
-import { FormEvent, useState } from "react";
-import { Loader2, Plus } from "lucide-react";
+import {
+    type FormEvent,
+    useState,
+} from "react";
 
-import { Button } from "@/components/ui/button";
+import {
+    SERVICE_PRICE_TYPES,
+    type ServicePriceType,
+} from "@priscila/shared";
+
+import {
+    Loader2,
+    Plus,
+} from "lucide-react";
+
+import {
+    Button,
+} from "@/components/ui/button";
+
 import {
     Dialog,
     DialogContent,
@@ -12,50 +27,116 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { useCreateService } from "../hooks/useCreateService";
 
+import {
+    Input,
+} from "@/components/ui/input";
 
+import {
+    useCreateService,
+} from "../hooks/useCreateService";
 
-function formatPriceInput(digits: string) {
+function formatPriceInput(
+    digits: string,
+) {
     if (!digits) {
         return "";
     }
 
-    const valueInCents = Number(digits);
+    const valueInCents =
+        Number(
+            digits,
+        );
 
-    return new Intl.NumberFormat("pt-BR", {
-        style: "currency",
-        currency: "BRL",
-    }).format(valueInCents / 100);
+    return new Intl.NumberFormat(
+        "pt-BR",
+        {
+            style:
+                "currency",
+
+            currency:
+                "BRL",
+        },
+    ).format(
+        valueInCents /
+            100,
+    );
 }
 
 export function CreateServiceDialog() {
-    const [open, setOpen] = useState(false);
+    const [
+        open,
+        setOpen,
+    ] =
+        useState(
+            false,
+        );
 
-    const [name, setName] = useState("");
-    const [priceDigits, setPriceDigits] =
-        useState("");
+    const [
+        name,
+        setName,
+    ] =
+        useState(
+            "",
+        );
 
-    const [formError, setFormError] =
-        useState("");
+    const [
+        priceDigits,
+        setPriceDigits,
+    ] =
+        useState(
+            "",
+        );
+
+    const [
+        priceType,
+        setPriceType,
+    ] =
+        useState<ServicePriceType>(
+            SERVICE_PRICE_TYPES.FIXED,
+        );
+
+    const [
+        formError,
+        setFormError,
+    ] =
+        useState(
+            "",
+        );
 
     const createService =
         useCreateService();
 
     const formattedPrice =
-        formatPriceInput(priceDigits);
+        formatPriceInput(
+            priceDigits,
+        );
 
     function resetForm() {
-        setName("");
-        setPriceDigits("");
-        setFormError("");
+        setName(
+            "",
+        );
+
+        setPriceDigits(
+            "",
+        );
+
+        setPriceType(
+            SERVICE_PRICE_TYPES.FIXED,
+        );
+
+        setFormError(
+            "",
+        );
     }
 
     function handleOpenChange(
-        nextOpen: boolean,
+        nextOpen:
+            boolean,
     ) {
-        setOpen(nextOpen);
+        setOpen(
+            nextOpen,
+        );
 
         if (!nextOpen) {
             resetForm();
@@ -63,25 +144,42 @@ export function CreateServiceDialog() {
     }
 
     function handlePriceChange(
-        value: string,
+        value:
+            string,
     ) {
-        const digits = value
-            .replace(/\D/g, "")
-            .slice(0, 9);
+        const digits =
+            value
+                .replace(
+                    /\D/g,
+                    "",
+                )
+                .slice(
+                    0,
+                    9,
+                );
 
-        setPriceDigits(digits);
+        setPriceDigits(
+            digits,
+        );
     }
 
     async function handleSubmit(
-        event: FormEvent<HTMLFormElement>,
+        event:
+            FormEvent<HTMLFormElement>,
     ) {
         event.preventDefault();
 
-        setFormError("");
+        setFormError(
+            "",
+        );
 
-        const normalizedName = name.trim();
+        const normalizedName =
+            name.trim();
 
-        if (normalizedName.length < 2) {
+        if (
+            normalizedName.length <
+            2
+        ) {
             setFormError(
                 "Informe o nome do serviço.",
             );
@@ -90,11 +188,16 @@ export function CreateServiceDialog() {
         }
 
         const defaultPriceCents =
-            Number(priceDigits);
+            Number(
+                priceDigits,
+            );
 
         if (
-            !Number.isInteger(defaultPriceCents) ||
-            defaultPriceCents <= 0
+            !Number.isInteger(
+                defaultPriceCents,
+            ) ||
+            defaultPriceCents <=
+                0
         ) {
             setFormError(
                 "Informe um preço válido.",
@@ -104,47 +207,70 @@ export function CreateServiceDialog() {
         }
 
         try {
-            await createService.mutateAsync({
-                name: normalizedName,
-                defaultPriceCents,
-            });
+            await createService
+                .mutateAsync({
+                    name:
+                        normalizedName,
+
+                    defaultPriceCents,
+
+                    priceType,
+                });
 
             resetForm();
-            setOpen(false);
+
+            setOpen(
+                false,
+            );
         } catch (error) {
             setFormError(
-                error instanceof Error
+                error instanceof
+                    Error
                     ? error.message
                     : "Não foi possível cadastrar o serviço.",
             );
         }
     }
 
+    const isFixedPrice =
+        priceType ===
+        SERVICE_PRICE_TYPES.FIXED;
+
     return (
         <>
             <Button
                 type="button"
-                onClick={() => setOpen(true)}
+                onClick={() =>
+                    setOpen(
+                        true,
+                    )
+                }
                 className="bg-[#304229] text-white hover:bg-[#24351F]"
             >
                 <Plus className="mr-2 size-4" />
+
                 Novo serviço
             </Button>
 
             <Dialog
                 open={open}
-                onOpenChange={handleOpenChange}
+                onOpenChange={
+                    handleOpenChange
+                }
             >
                 <DialogContent className="sm:max-w-md">
-                    <form onSubmit={handleSubmit}>
+                    <form
+                        onSubmit={
+                            handleSubmit
+                        }
+                    >
                         <DialogHeader>
                             <DialogTitle>
                                 Novo serviço
                             </DialogTitle>
 
                             <DialogDescription>
-                                Informe o nome e o preço padrão
-                                do serviço.
+                                Informe o nome, o tipo de preço e o valor do serviço.
                             </DialogDescription>
                         </DialogHeader>
 
@@ -160,18 +286,93 @@ export function CreateServiceDialog() {
                                 <Input
                                     id="service-name"
                                     type="text"
-                                    value={name}
-                                    disabled={
-                                        createService.isPending
+                                    value={
+                                        name
                                     }
-                                    placeholder="Ex: Progressiva"
-                                    maxLength={100}
-                                    onChange={(event) =>
+                                    disabled={
+                                        createService
+                                            .isPending
+                                    }
+                                    placeholder="Ex: Liso Afro"
+                                    maxLength={
+                                        100
+                                    }
+                                    onChange={(
+                                        event,
+                                    ) =>
                                         setName(
-                                            event.target.value,
+                                            event
+                                                .target
+                                                .value,
                                         )
                                     }
                                 />
+                            </div>
+
+                            <div className="space-y-3">
+                                <div>
+                                    <p className="text-sm font-medium">
+                                        Tipo de preço
+                                    </p>
+
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                        Escolha como o valor será apresentado para a cliente.
+                                    </p>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button
+                                        type="button"
+                                        disabled={
+                                            createService
+                                                .isPending
+                                        }
+                                        onClick={() =>
+                                            setPriceType(
+                                                SERVICE_PRICE_TYPES.FIXED,
+                                            )
+                                        }
+                                        className={`rounded-xl border px-4 py-3 text-left transition ${
+                                            isFixedPrice
+                                                ? "border-[#304229] bg-[#304229]/5 ring-1 ring-[#304229]"
+                                                : "border-border bg-background hover:bg-muted/40"
+                                        }`}
+                                    >
+                                        <span className="block text-sm font-semibold">
+                                            Valor fixo
+                                        </span>
+
+                                        <span className="mt-1 block text-xs text-muted-foreground">
+                                            Ex: R$ 250,00
+                                        </span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        disabled={
+                                            createService
+                                                .isPending
+                                        }
+                                        onClick={() =>
+                                            setPriceType(
+                                                SERVICE_PRICE_TYPES.STARTING_FROM,
+                                            )
+                                        }
+                                        className={`rounded-xl border px-4 py-3 text-left transition ${
+                                            !isFixedPrice
+                                                ? "border-[#304229] bg-[#304229]/5 ring-1 ring-[#304229]"
+                                                : "border-border bg-background hover:bg-muted/40"
+                                        }`}
+                                    >
+                                        <span className="block text-sm font-semibold">
+                                            A partir de
+                                        </span>
+
+                                        <span className="mt-1 block text-xs text-muted-foreground">
+                                            Ex: A partir de R$ 500
+                                        </span>
+                                    </button>
+                                </div>
                             </div>
 
                             <div className="space-y-2">
@@ -179,35 +380,63 @@ export function CreateServiceDialog() {
                                     htmlFor="service-price"
                                     className="text-sm font-medium"
                                 >
-                                    Preço
+                                    {isFixedPrice
+                                        ? "Preço"
+                                        : "Valor inicial"}
                                 </label>
 
                                 <Input
                                     id="service-price"
                                     type="text"
                                     inputMode="numeric"
-                                    value={formattedPrice}
+                                    value={
+                                        formattedPrice
+                                    }
                                     disabled={
-                                        createService.isPending
+                                        createService
+                                            .isPending
                                     }
                                     placeholder="R$ 0,00"
-                                    onChange={(event) =>
+                                    onChange={(
+                                        event,
+                                    ) =>
                                         handlePriceChange(
-                                            event.target.value,
+                                            event
+                                                .target
+                                                .value,
                                         )
                                     }
                                 />
 
                                 <p className="text-xs text-muted-foreground">
-                                    Este será o preço padrão do
-                                    serviço.
+                                    {isFixedPrice
+                                        ? "Este será o valor fixo apresentado para a cliente."
+                                        : "A cliente verá este valor como preço inicial do serviço."}
                                 </p>
+
+                                {!isFixedPrice &&
+                                    formattedPrice && (
+                                        <div className="rounded-xl border border-[#304229]/15 bg-[#304229]/5 px-4 py-3">
+                                            <p className="text-xs text-muted-foreground">
+                                                Visualização para a cliente
+                                            </p>
+
+                                            <p className="mt-1 text-sm font-semibold text-[#304229]">
+                                                A partir de{" "}
+                                                {
+                                                    formattedPrice
+                                                }
+                                            </p>
+                                        </div>
+                                    )}
                             </div>
 
                             {formError && (
                                 <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3">
                                     <p className="text-sm text-red-700">
-                                        {formError}
+                                        {
+                                            formError
+                                        }
                                     </p>
                                 </div>
                             )}
@@ -218,10 +447,13 @@ export function CreateServiceDialog() {
                                 type="button"
                                 variant="outline"
                                 disabled={
-                                    createService.isPending
+                                    createService
+                                        .isPending
                                 }
                                 onClick={() =>
-                                    handleOpenChange(false)
+                                    handleOpenChange(
+                                        false,
+                                    )
                                 }
                             >
                                 Cancelar
@@ -230,13 +462,16 @@ export function CreateServiceDialog() {
                             <Button
                                 type="submit"
                                 disabled={
-                                    createService.isPending
+                                    createService
+                                        .isPending
                                 }
                                 className="bg-[#304229] text-white hover:bg-[#24351F]"
                             >
-                                {createService.isPending ? (
+                                {createService
+                                    .isPending ? (
                                     <>
                                         <Loader2 className="mr-2 size-4 animate-spin" />
+
                                         Salvando...
                                     </>
                                 ) : (

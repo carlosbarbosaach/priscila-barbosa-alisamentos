@@ -1,6 +1,7 @@
 import type {
   AppointmentPriceSource,
   AppointmentStatus,
+  ServicePriceType,
 } from "@priscila/shared";
 
 import type {
@@ -8,17 +9,6 @@ import type {
 } from "firebase-admin/firestore";
 
 export type AppointmentOccupancyIntervalDocument = {
-  /*
-   * Minutos relativos ao início
-   * do agendamento.
-   *
-   * Exemplo:
-   *
-   * Agendamento 08:00
-   *
-   * 0 → 60
-   * representa 08:00 → 09:00.
-   */
   startOffsetMinutes: number;
 
   endOffsetMinutes: number;
@@ -32,12 +22,6 @@ export type AppointmentDocument = {
 
   status: AppointmentStatus;
 
-  /*
-   * Data local do salão.
-   *
-   * Exemplo:
-   * 2026-08-18
-   */
   dateKey: string;
 
   startsAt: Timestamp;
@@ -45,33 +29,32 @@ export type AppointmentDocument = {
 
   durationMinutes: number;
 
-  /*
-   * Snapshot dos períodos em que
-   * a profissional fica ocupada.
-   *
-   * Ficará independente de futuras
-   * alterações nas fases do serviço.
-   *
-   * Opcional temporariamente para
-   * compatibilidade/fallback.
-   */
   professionalOccupancySnapshot?:
     AppointmentOccupancyIntervalDocument[];
 
-  /*
-   * Snapshots históricos.
-   */
   clientNameSnapshot: string;
   clientPhoneSnapshot: string;
 
   serviceNameSnapshot: string;
 
+  /*
+   * Opcional no Firestore para manter
+   * compatibilidade com agendamentos
+   * criados antes desta alteração.
+   */
+  servicePriceTypeSnapshot?:
+    ServicePriceType;
+
   chargedPriceCents: number;
 
-  priceSource: AppointmentPriceSource;
+  priceSource:
+    AppointmentPriceSource;
 
-  rejectionReason: string | null;
-  cancellationReason: string | null;
+  rejectionReason:
+    string | null;
+
+  cancellationReason:
+    string | null;
 
   createdAt: Timestamp;
   updatedAt: Timestamp;

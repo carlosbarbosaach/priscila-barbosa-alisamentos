@@ -2,7 +2,9 @@
 
 import {
   APPOINTMENT_PRICE_SOURCE,
+  SERVICE_PRICE_TYPES,
   type Appointment,
+  type ClientBookableService,
 } from "@priscila/shared";
 
 import {
@@ -49,18 +51,51 @@ const currencyFormatter =
   new Intl.NumberFormat(
     "pt-BR",
     {
-      style: "currency",
-      currency: "BRL",
+      style:
+        "currency",
+
+      currency:
+        "BRL",
     },
   );
 
 function formatPrice(
-  priceCents: number,
+  priceCents:
+    number,
 ) {
   return currencyFormatter
     .format(
-      priceCents / 100,
+      priceCents /
+        100,
     );
+}
+
+/*
+ * =================================
+ * PREÇOS
+ * =================================
+ */
+
+function isClientSpecialPrice(
+  service:
+    ClientBookableService,
+) {
+  return (
+    service.priceSource ===
+    APPOINTMENT_PRICE_SOURCE
+      .CLIENT_SPECIAL
+  );
+}
+
+function isStartingFromPrice(
+  service:
+    ClientBookableService,
+) {
+  return (
+    service.priceType ===
+    SERVICE_PRICE_TYPES
+      .STARTING_FROM
+  );
 }
 
 function getTodayDateKey() {
@@ -68,35 +103,51 @@ function getTodayDateKey() {
     new Intl.DateTimeFormat(
       "en-CA",
       {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
+        year:
+          "numeric",
+
+        month:
+          "2-digit",
+
+        day:
+          "2-digit",
+
         timeZone:
           SALON_TIME_ZONE,
       },
     );
 
   const parts =
-    formatter.formatToParts(
-      new Date(),
-    );
+    formatter
+      .formatToParts(
+        new Date(),
+      );
 
   const year =
     parts.find(
-      (part) =>
-        part.type === "year",
+      (
+        part,
+      ) =>
+        part.type ===
+        "year",
     )?.value;
 
   const month =
     parts.find(
-      (part) =>
-        part.type === "month",
+      (
+        part,
+      ) =>
+        part.type ===
+        "month",
     )?.value;
 
   const day =
     parts.find(
-      (part) =>
-        part.type === "day",
+      (
+        part,
+      ) =>
+        part.type ===
+        "day",
     )?.value;
 
   if (
@@ -113,7 +164,8 @@ function getTodayDateKey() {
 }
 
 function formatDateKey(
-  dateKey: string,
+  dateKey:
+    string,
 ) {
   const [
     year,
@@ -121,8 +173,12 @@ function formatDateKey(
     day,
   ] =
     dateKey
-      .split("-")
-      .map(Number);
+      .split(
+        "-",
+      )
+      .map(
+        Number,
+      );
 
   if (
     !year ||
@@ -136,7 +192,8 @@ function formatDateKey(
     new Date(
       Date.UTC(
         year,
-        month - 1,
+        month -
+          1,
         day,
         12,
       ),
@@ -146,10 +203,18 @@ function formatDateKey(
     new Intl.DateTimeFormat(
       "pt-BR",
       {
-        weekday: "long",
-        day: "2-digit",
-        month: "long",
-        year: "numeric",
+        weekday:
+          "long",
+
+        day:
+          "2-digit",
+
+        month:
+          "long",
+
+        year:
+          "numeric",
+
         timeZone:
           "UTC",
       },
@@ -159,33 +224,44 @@ function formatDateKey(
 
   return (
     formatted
-      .charAt(0)
+      .charAt(
+        0,
+      )
       .toUpperCase() +
-    formatted.slice(1)
+    formatted
+      .slice(
+        1,
+      )
   );
 }
 
 function formatDuration(
-  minutes: number,
+  minutes:
+    number,
 ) {
   if (
-    minutes < 60
+    minutes <
+    60
   ) {
     return `${minutes} min`;
   }
 
   const hours =
     Math.floor(
-      minutes / 60,
+      minutes /
+        60,
     );
 
   const remainingMinutes =
-    minutes % 60;
+    minutes %
+    60;
 
   if (
-    remainingMinutes === 0
+    remainingMinutes ===
+    0
   ) {
-    return hours === 1
+    return hours ===
+      1
       ? "1 hora"
       : `${hours} horas`;
   }
@@ -201,7 +277,9 @@ export default function ClientBookingPage() {
     selectedServiceId,
     setSelectedServiceId,
   ] =
-    useState<string | null>(
+    useState<
+      string | null
+    >(
       null,
     );
 
@@ -209,7 +287,9 @@ export default function ClientBookingPage() {
     selectedDate,
     setSelectedDate,
   ] =
-    useState<string | null>(
+    useState<
+      string | null
+    >(
       null,
     );
 
@@ -217,7 +297,9 @@ export default function ClientBookingPage() {
     selectedStartTime,
     setSelectedStartTime,
   ] =
-    useState<string | null>(
+    useState<
+      string | null
+    >(
       null,
     );
 
@@ -225,7 +307,9 @@ export default function ClientBookingPage() {
     submitError,
     setSubmitError,
   ] =
-    useState<string | null>(
+    useState<
+      string | null
+    >(
       null,
     );
 
@@ -233,7 +317,9 @@ export default function ClientBookingPage() {
     createdAppointment,
     setCreatedAppointment,
   ] =
-    useState<Appointment | null>(
+    useState<
+      Appointment | null
+    >(
       null,
     );
 
@@ -245,25 +331,27 @@ export default function ClientBookingPage() {
 
   const {
     data:
-    services = [],
+      services = [],
 
     isLoading:
-    servicesLoading,
+      servicesLoading,
 
     isError:
-    servicesError,
+      servicesError,
 
     refetch:
-    refetchServices,
+      refetchServices,
 
     isFetching:
-    servicesFetching,
+      servicesFetching,
   } =
     useClientBookableServices();
 
   const selectedService =
     services.find(
-      (service) =>
+      (
+        service,
+      ) =>
         service.id ===
         selectedServiceId,
     ) ??
@@ -277,19 +365,19 @@ export default function ClientBookingPage() {
 
   const {
     data:
-    availability,
+      availability,
 
     isLoading:
-    availabilityLoading,
+      availabilityLoading,
 
     isFetching:
-    availabilityFetching,
+      availabilityFetching,
 
     isError:
-    availabilityError,
+      availabilityError,
 
     refetch:
-    refetchAvailability,
+      refetchAvailability,
   } =
     useAppointmentAvailability({
       serviceId:
@@ -300,12 +388,15 @@ export default function ClientBookingPage() {
     });
 
   const slots =
-    availability?.slots ??
+    availability
+      ?.slots ??
     [];
 
   const selectedSlot =
     slots.find(
-      (slot) =>
+      (
+        slot,
+      ) =>
         slot.startTime ===
         selectedStartTime,
     ) ??
@@ -321,7 +412,8 @@ export default function ClientBookingPage() {
     useCreateAppointment();
 
   function handleSelectService(
-    serviceId: string,
+    serviceId:
+      string,
   ) {
     setSelectedServiceId(
       serviceId,
@@ -348,7 +440,8 @@ export default function ClientBookingPage() {
   }
 
   function handleSelectDate(
-    dateKey: string,
+    dateKey:
+      string,
   ) {
     setSelectedDate(
       dateKey ||
@@ -373,7 +466,8 @@ export default function ClientBookingPage() {
   }
 
   function handleSelectTime(
-    startTime: string,
+    startTime:
+      string,
   ) {
     setSelectedStartTime(
       startTime,
@@ -439,9 +533,12 @@ export default function ClientBookingPage() {
       setCreatedAppointment(
         appointment,
       );
-    } catch (error) {
+    } catch (
+      error
+    ) {
       const message =
-        error instanceof Error
+        error instanceof
+          Error
           ? error.message
           : "Não foi possível enviar sua solicitação.";
 
@@ -460,6 +557,20 @@ export default function ClientBookingPage() {
   if (
     createdAppointment
   ) {
+    const createdServiceHasSpecialPrice =
+      selectedService
+        ? isClientSpecialPrice(
+            selectedService,
+          )
+        : false;
+
+    const createdServiceIsStartingFrom =
+      selectedService
+        ? isStartingFromPrice(
+            selectedService,
+          )
+        : false;
+
     return (
       <div className="mx-auto max-w-3xl">
         <section className="overflow-hidden rounded-3xl border border-[#DDE3D9] bg-white shadow-sm">
@@ -523,8 +634,8 @@ export default function ClientBookingPage() {
                   <p className="mt-1 font-semibold text-[#263620]">
                     {selectedDate
                       ? formatDateKey(
-                        selectedDate,
-                      )
+                          selectedDate,
+                        )
                       : "-"}
                   </p>
                 </div>
@@ -543,15 +654,42 @@ export default function ClientBookingPage() {
 
                 <div>
                   <p className="text-xs font-medium text-[#92978E]">
-                    Valor
+                    {createdServiceIsStartingFrom &&
+                    !createdServiceHasSpecialPrice
+                      ? "Valor inicial"
+                      : "Valor"}
                   </p>
 
-                  <p className="mt-1 text-lg font-bold text-[#304229]">
-                    {formatPrice(
-                      createdAppointment
-                        .chargedPriceCents,
-                    )}
-                  </p>
+                  {createdServiceIsStartingFrom &&
+                  !createdServiceHasSpecialPrice ? (
+                    <div className="mt-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#788273]">
+                        A partir de
+                      </p>
+
+                      <p className="mt-0.5 text-lg font-bold text-[#304229]">
+                        {formatPrice(
+                          createdAppointment
+                            .chargedPriceCents,
+                        )}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="mt-1 text-lg font-bold text-[#304229]">
+                      {formatPrice(
+                        createdAppointment
+                          .chargedPriceCents,
+                      )}
+                    </p>
+                  )}
+
+                  {createdServiceHasSpecialPrice && (
+                    <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-[#F5EBD2] px-2.5 py-1 text-[11px] font-semibold text-[#8A6A2F]">
+                      <Tag className="size-3" />
+
+                      Seu preço
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -650,6 +788,7 @@ export default function ClientBookingPage() {
         <div
           className={[
             "rounded-2xl border px-3 py-3",
+
             selectedServiceId
               ? "border-[#C8D5C3] bg-[#EEF5EB]"
               : "border-[#E5E0D5] bg-white",
@@ -669,6 +808,7 @@ export default function ClientBookingPage() {
         <div
           className={[
             "rounded-2xl border px-3 py-3",
+
             selectedDate
               ? "border-[#C8D5C3] bg-[#EEF5EB]"
               : "border-[#E5E0D5] bg-white",
@@ -688,6 +828,7 @@ export default function ClientBookingPage() {
         <div
           className={[
             "rounded-2xl border px-3 py-3",
+
             selectedStartTime
               ? "border-[#C8D5C3] bg-[#EEF5EB]"
               : "border-[#E5E0D5] bg-white",
@@ -727,8 +868,14 @@ export default function ClientBookingPage() {
 
         {servicesLoading && (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {[1, 2, 3].map(
-              (item) => (
+            {[
+              1,
+              2,
+              3,
+            ].map(
+              (
+                item,
+              ) => (
                 <div
                   key={
                     item
@@ -783,7 +930,7 @@ export default function ClientBookingPage() {
         {!servicesLoading &&
           !servicesError &&
           services.length ===
-          0 && (
+            0 && (
             <div className="rounded-3xl border border-dashed border-[#D8D3C8] bg-white/60 p-8 text-center">
               <Scissors className="mx-auto size-8 text-[#8A8E84]" />
 
@@ -802,7 +949,7 @@ export default function ClientBookingPage() {
         {!servicesLoading &&
           !servicesError &&
           services.length >
-          0 && (
+            0 && (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {services.map(
                 (
@@ -812,13 +959,21 @@ export default function ClientBookingPage() {
                     selectedServiceId ===
                     service.id;
 
+                  const specialPrice =
+                    isClientSpecialPrice(
+                      service,
+                    );
+
+                  const startingFrom =
+                    isStartingFromPrice(
+                      service,
+                    );
+
                   const hasSpecialPrice =
-                    service.priceSource ===
-                    APPOINTMENT_PRICE_SOURCE
-                      .CLIENT_SPECIAL &&
+                    specialPrice &&
                     service.priceCents !==
-                    service
-                      .defaultPriceCents;
+                      service
+                        .defaultPriceCents;
 
                   return (
                     <button
@@ -833,6 +988,7 @@ export default function ClientBookingPage() {
                       }
                       className={[
                         "relative overflow-hidden rounded-3xl border p-5 text-left shadow-sm transition",
+
                         selected
                           ? "border-[#607456] bg-[#F8FBF6] ring-2 ring-[#607456]/15"
                           : "border-[#E5E0D5] bg-white hover:-translate-y-0.5 hover:border-[#C8D0C3] hover:shadow-md",
@@ -881,19 +1037,40 @@ export default function ClientBookingPage() {
 
                           {hasSpecialPrice && (
                             <p className="mt-2 text-xs text-[#92978E] line-through">
-                              {formatPrice(
-                                service
-                                  .defaultPriceCents,
-                              )}
+                              {startingFrom
+                                ? `A partir de ${formatPrice(
+                                    service
+                                      .defaultPriceCents,
+                                  )}`
+                                : formatPrice(
+                                    service
+                                      .defaultPriceCents,
+                                  )}
                             </p>
                           )}
 
-                          <p className="mt-1 text-xl font-bold text-[#304229]">
-                            {formatPrice(
-                              service
-                                .priceCents,
-                            )}
-                          </p>
+                          {!specialPrice &&
+                          startingFrom ? (
+                            <div className="mt-2">
+                              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#788273]">
+                                A partir de
+                              </p>
+
+                              <p className="mt-0.5 text-xl font-bold text-[#304229]">
+                                {formatPrice(
+                                  service
+                                    .priceCents,
+                                )}
+                              </p>
+                            </div>
+                          ) : (
+                            <p className="mt-1 text-xl font-bold text-[#304229]">
+                              {formatPrice(
+                                service
+                                  .priceCents,
+                              )}
+                            </p>
+                          )}
                         </div>
 
                         {hasSpecialPrice && (
@@ -942,8 +1119,8 @@ export default function ClientBookingPage() {
             <p className="mt-1 text-sm leading-6 text-[#71776D]">
               Depois de selecionar a
               data, mostraremos somente
-              os horários realmente
-              disponíveis.
+              os horários disponíveis
+              para solicitação.
             </p>
 
             <input
@@ -960,7 +1137,8 @@ export default function ClientBookingPage() {
                 event,
               ) =>
                 handleSelectDate(
-                  event.target
+                  event
+                    .target
                     .value,
                 )
               }
@@ -1045,7 +1223,7 @@ export default function ClientBookingPage() {
                 !availabilityFetching &&
                 !availabilityError &&
                 slots.length ===
-                0 && (
+                  0 && (
                   <div className="py-8 text-center">
                     <CalendarDays className="mx-auto size-8 text-[#9A9F95]" />
 
@@ -1068,7 +1246,7 @@ export default function ClientBookingPage() {
                 !availabilityFetching &&
                 !availabilityError &&
                 slots.length >
-                0 && (
+                  0 && (
                   <>
                     <p className="text-sm text-[#71776D]">
                       Toque em um horário
@@ -1097,6 +1275,7 @@ export default function ClientBookingPage() {
                               }
                               className={[
                                 "min-h-12 rounded-xl border px-3 py-2 text-sm font-semibold transition",
+
                                 selected
                                   ? "border-[#304229] bg-[#304229] text-white shadow-sm"
                                   : "border-[#DDD6C9] bg-[#FFFDF8] text-[#394035] hover:border-[#607456] hover:bg-[#F5F7F2]",
@@ -1212,47 +1391,91 @@ export default function ClientBookingPage() {
                   </div>
                 </div>
 
-                <div className="border-t border-[#EEEAE1] bg-[#FBFCF9] p-5 md:border-l md:border-t-0 sm:p-6">
+                <div className="border-t border-[#EEEAE1] bg-[#FBFCF9] p-5 sm:p-6 md:border-l md:border-t-0">
                   <div className="flex items-center gap-2 text-[#304229]">
                     <WalletCards className="size-4" />
 
                     <p className="text-xs font-semibold uppercase tracking-wide">
-                      Valor
+                      {isStartingFromPrice(
+                        selectedService,
+                      ) &&
+                      !isClientSpecialPrice(
+                        selectedService,
+                      )
+                        ? "Valor inicial"
+                        : "Valor"}
                     </p>
                   </div>
 
-                  {selectedService
-                    .priceSource ===
-                    APPOINTMENT_PRICE_SOURCE
-                      .CLIENT_SPECIAL &&
+                  {isClientSpecialPrice(
+                    selectedService,
+                  ) &&
                     selectedService
                       .priceCents !==
-                    selectedService
-                      .defaultPriceCents && (
+                      selectedService
+                        .defaultPriceCents && (
                       <p className="mt-3 text-sm text-[#92978E] line-through">
-                        {formatPrice(
-                          selectedService
-                            .defaultPriceCents,
-                        )}
+                        {isStartingFromPrice(
+                          selectedService,
+                        )
+                          ? `A partir de ${formatPrice(
+                              selectedService
+                                .defaultPriceCents,
+                            )}`
+                          : formatPrice(
+                              selectedService
+                                .defaultPriceCents,
+                            )}
                       </p>
                     )}
 
-                  <p className="mt-1 text-2xl font-bold text-[#304229]">
-                    {formatPrice(
-                      selectedService
-                        .priceCents,
-                    )}
-                  </p>
+                  {!isClientSpecialPrice(
+                    selectedService,
+                  ) &&
+                  isStartingFromPrice(
+                    selectedService,
+                  ) ? (
+                    <div className="mt-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#788273]">
+                        A partir de
+                      </p>
 
-                  {selectedService
-                    .priceSource ===
-                    APPOINTMENT_PRICE_SOURCE
-                      .CLIENT_SPECIAL && (
-                      <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-[#F5EBD2] px-2.5 py-1 text-xs font-semibold text-[#8A6A2F]">
-                        <Tag className="size-3" />
+                      <p className="mt-1 text-2xl font-bold text-[#304229]">
+                        {formatPrice(
+                          selectedService
+                            .priceCents,
+                        )}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="mt-1 text-2xl font-bold text-[#304229]">
+                      {formatPrice(
+                        selectedService
+                          .priceCents,
+                      )}
+                    </p>
+                  )}
 
-                        Preço especial
-                      </span>
+                  {isClientSpecialPrice(
+                    selectedService,
+                  ) && (
+                    <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-[#F5EBD2] px-2.5 py-1 text-xs font-semibold text-[#8A6A2F]">
+                      <Tag className="size-3" />
+
+                      Preço especial
+                    </span>
+                  )}
+
+                  {!isClientSpecialPrice(
+                    selectedService,
+                  ) &&
+                    isStartingFromPrice(
+                      selectedService,
+                    ) && (
+                      <p className="mt-3 text-xs leading-5 text-[#71776D]">
+                        O valor final pode variar conforme
+                        a avaliação do serviço.
+                      </p>
                     )}
                 </div>
               </div>
@@ -1268,7 +1491,9 @@ export default function ClientBookingPage() {
                     </p>
 
                     <p className="mt-1 text-sm leading-6">
-                      {submitError}
+                      {
+                        submitError
+                      }
                     </p>
                   </div>
                 </div>
@@ -1337,6 +1562,7 @@ export default function ClientBookingPage() {
                 className="font-semibold text-[#304229] hover:underline"
               >
                 Meus agendamentos
+
                 <ArrowRight className="ml-1 inline size-3.5" />
               </Link>
               .

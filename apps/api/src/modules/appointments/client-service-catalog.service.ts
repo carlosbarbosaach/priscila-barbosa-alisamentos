@@ -1,5 +1,6 @@
 import {
   APPOINTMENT_PRICE_SOURCE,
+  SERVICE_PRICE_TYPES,
   type ClientBookableService,
 } from "@priscila/shared";
 
@@ -16,8 +17,11 @@ import {
 } from "../services/service.repository.js";
 
 type GetClientServiceCatalogInput = {
-  salonId: string;
-  clientId: string;
+  salonId:
+    string;
+
+  clientId:
+    string;
 };
 
 export class ClientServiceCatalogService {
@@ -33,16 +37,22 @@ export class ClientServiceCatalogService {
   ) {}
 
   async getCatalog(
-    input: GetClientServiceCatalogInput,
-  ): Promise<ClientBookableService[]> {
+    input:
+      GetClientServiceCatalogInput,
+  ): Promise<
+    ClientBookableService[]
+  > {
     const {
       salonId,
       clientId,
-    } = input;
+    } =
+      input;
 
     if (
       !salonId ||
-      salonId.trim().length === 0
+      salonId
+        .trim()
+        .length === 0
     ) {
       throw new Error(
         "Salão não informado.",
@@ -54,7 +64,8 @@ export class ClientServiceCatalogService {
      * realmente pertence ao salão.
      */
     const client =
-      await this.clientRepository
+      await this
+        .clientRepository
         .findById(
           salonId,
           clientId,
@@ -75,20 +86,22 @@ export class ClientServiceCatalogService {
     /*
      * 2. Fazemos somente duas consultas:
      *
-     * - serviços do salão
-     * - preços especiais da cliente
+     * - serviços do salão;
+     * - preços especiais da cliente.
      */
     const [
       services,
       specialPrices,
     ] =
       await Promise.all([
-        this.serviceRepository
+        this
+          .serviceRepository
           .findAllBySalon(
             salonId,
           ),
 
-        this.priceRepository
+        this
+          .priceRepository
           .findAllByClient(
             salonId,
             clientId,
@@ -96,24 +109,23 @@ export class ClientServiceCatalogService {
       ]);
 
     /*
-     * Criamos um Map:
-     *
      * serviceId
      * ↓
-     * preço especial
-     *
-     * Isso evita ficar percorrendo
-     * todos os preços para cada serviço.
+     * preço especial ativo
      */
     const specialPriceByServiceId =
       new Map(
         specialPrices
           .filter(
-            (price) =>
+            (
+              price,
+            ) =>
               price.active,
           )
           .map(
-            (price) => [
+            (
+              price,
+            ) => [
               price.serviceId,
               price,
             ],
@@ -126,17 +138,23 @@ export class ClientServiceCatalogService {
      */
     const activeServices =
       services.filter(
-        (service) =>
+        (
+          service,
+        ) =>
           service.active,
       );
 
     return activeServices.map(
-      (service) => {
+      (
+        service,
+      ) => {
         if (
           !Number.isInteger(
-            service.defaultPriceCents,
+            service
+              .defaultPriceCents,
           ) ||
-          service.defaultPriceCents <
+          service
+            .defaultPriceCents <
             0
         ) {
           throw new Error(
@@ -146,9 +164,11 @@ export class ClientServiceCatalogService {
 
         if (
           !Number.isInteger(
-            service.durationMinutes,
+            service
+              .durationMinutes,
           ) ||
-          service.durationMinutes <=
+          service
+            .durationMinutes <=
             0
         ) {
           throw new Error(
@@ -156,20 +176,43 @@ export class ClientServiceCatalogService {
           );
         }
 
+        /*
+         * Compatibilidade com serviços
+         * antigos do Firestore.
+         *
+         * Se o documento ainda não tiver
+         * priceType:
+         *
+         * undefined
+         * ↓
+         * FIXED
+         */
+        const priceType =
+          service.priceType ??
+          SERVICE_PRICE_TYPES
+            .FIXED;
+
         const specialPrice =
-          specialPriceByServiceId.get(
-            service.id,
-          );
+          specialPriceByServiceId
+            .get(
+              service.id,
+            );
 
         /*
-         * Existe preço especial ativo.
+         * =================================
+         * PREÇO ESPECIAL DA CLIENTE
+         * =================================
          */
-        if (specialPrice) {
+        if (
+          specialPrice
+        ) {
           if (
             !Number.isInteger(
-              specialPrice.priceCents,
+              specialPrice
+                .priceCents,
             ) ||
-            specialPrice.priceCents <
+            specialPrice
+              .priceCents <
               0
           ) {
             throw new Error(
@@ -185,19 +228,34 @@ export class ClientServiceCatalogService {
               service.name,
 
             description:
-              service.description,
+              service
+                .description,
 
             category:
               service.category,
 
             durationMinutes:
-              service.durationMinutes,
+              service
+                .durationMinutes,
 
             defaultPriceCents:
-              service.defaultPriceCents,
+              service
+                .defaultPriceCents,
+
+            /*
+             * Mesmo possuindo preço
+             * especial, enviamos o tipo
+             * original do serviço.
+             *
+             * O frontend poderá decidir
+             * que preço especial tem
+             * prioridade visual.
+             */
+            priceType,
 
             priceCents:
-              specialPrice.priceCents,
+              specialPrice
+                .priceCents,
 
             priceSource:
               APPOINTMENT_PRICE_SOURCE
@@ -206,8 +264,9 @@ export class ClientServiceCatalogService {
         }
 
         /*
-         * Sem preço especial:
-         * preço padrão do serviço.
+         * =================================
+         * PREÇO PADRÃO DO SERVIÇO
+         * =================================
          */
         return {
           id:
@@ -217,19 +276,25 @@ export class ClientServiceCatalogService {
             service.name,
 
           description:
-            service.description,
+            service
+              .description,
 
           category:
             service.category,
 
           durationMinutes:
-            service.durationMinutes,
+            service
+              .durationMinutes,
 
           defaultPriceCents:
-            service.defaultPriceCents,
+            service
+              .defaultPriceCents,
+
+          priceType,
 
           priceCents:
-            service.defaultPriceCents,
+            service
+              .defaultPriceCents,
 
           priceSource:
             APPOINTMENT_PRICE_SOURCE

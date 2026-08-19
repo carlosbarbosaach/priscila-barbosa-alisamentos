@@ -160,7 +160,8 @@ type AdminAppointmentsResponse = {
 };
 
 export async function getAdminAppointments(
-  dateKey: string,
+  dateKey:
+    string,
 ): Promise<Appointment[]> {
   const params =
     new URLSearchParams({
@@ -186,7 +187,8 @@ export async function getAdminAppointments(
  */
 
 export async function confirmAppointment(
-  appointmentId: string,
+  appointmentId:
+    string,
 ): Promise<Appointment> {
   const response =
     await apiFetch<AppointmentResponse>(
@@ -204,16 +206,14 @@ export async function confirmAppointment(
  * ==============================
  * ADMIN — RECUSAR
  * ==============================
- *
- * PENDING_APPROVAL
- * ↓
- * REJECTED
  */
 
 export type RejectAppointmentInput = {
-  appointmentId: string;
+  appointmentId:
+    string;
 
-  rejectionReason: string;
+  rejectionReason:
+    string;
 };
 
 export async function rejectAppointment(
@@ -240,16 +240,13 @@ export async function rejectAppointment(
 
 /*
  * ==============================
- * ADMIN — INICIAR ATENDIMENTO
+ * ADMIN — INICIAR
  * ==============================
- *
- * CONFIRMED
- * ↓
- * IN_PROGRESS
  */
 
 export async function startAppointment(
-  appointmentId: string,
+  appointmentId:
+    string,
 ): Promise<Appointment> {
   const response =
     await apiFetch<AppointmentResponse>(
@@ -265,24 +262,57 @@ export async function startAppointment(
 
 /*
  * ==============================
- * ADMIN — CONCLUIR ATENDIMENTO
+ * ADMIN — CONCLUIR
  * ==============================
  *
- * IN_PROGRESS
- * ↓
- * COMPLETED
+ * FIXED:
+ *
+ * {
+ *   appointmentId
+ * }
+ *
+ * STARTING_FROM:
+ *
+ * {
+ *   appointmentId,
+ *   finalPriceCents: 65000
+ * }
  */
 
+export type CompleteAppointmentInput = {
+  appointmentId:
+    string;
+
+  finalPriceCents?:
+    number;
+};
+
 export async function completeAppointment(
-  appointmentId: string,
+  input:
+    CompleteAppointmentInput,
 ): Promise<Appointment> {
+  const requestOptions =
+    input.finalPriceCents !==
+    undefined
+      ? {
+          method:
+            "PATCH",
+
+          body:
+            JSON.stringify({
+              finalPriceCents:
+                input.finalPriceCents,
+            }),
+        }
+      : {
+          method:
+            "PATCH",
+        };
+
   const response =
     await apiFetch<AppointmentResponse>(
-      `/admin/appointments/${appointmentId}/complete`,
-      {
-        method:
-          "PATCH",
-      },
+      `/admin/appointments/${input.appointmentId}/complete`,
+      requestOptions,
     );
 
   return response.appointment;

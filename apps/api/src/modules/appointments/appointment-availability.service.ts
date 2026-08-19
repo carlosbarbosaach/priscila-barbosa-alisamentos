@@ -1,387 +1,447 @@
 import type {
-  ServicePhase,
+    ServicePhase,
 } from "@priscila/shared";
 
 import {
-  APPOINTMENT_CONFIG,
+    APPOINTMENT_CONFIG,
 } from "./appointment.config.js";
 
 import {
-  AppointmentConflictService,
+    AppointmentConflictService,
 } from "./appointment-conflict.service.js";
 
 import {
-  AppointmentOccupancyService,
-} from "./appointment-occupancy.service.js";
-
-import {
-  AppointmentRepository,
+    AppointmentRepository,
 } from "./appointment.repository.js";
 
 import type {
-  AvailabilitySlot,
+    AvailabilitySlot,
 } from "./appointment-availability.types.js";
 
 type GenerateSlotsInput = {
-  dateKey: string;
-  durationMinutes: number;
+    dateKey:
+        string;
+
+    durationMinutes:
+        number;
 };
 
 type GetAvailableSlotsInput = {
-  dateKey: string;
+    dateKey:
+        string;
 
-  durationMinutes: number;
+    durationMinutes:
+        number;
 
-  /*
-   * Fases do serviço que a cliente
-   * está tentando agendar.
-   */
-  phases: ServicePhase[];
+    /*
+     * Mantemos phases no contrato
+     * porque a duração/fases continuam
+     * fazendo parte do serviço.
+     *
+     * Porém elas não determinam mais
+     * o bloqueio de outro horário fixo.
+     */
+    phases:
+        ServicePhase[];
 };
 
 export class AppointmentAvailabilityService {
-  constructor(
-    private readonly appointmentRepository =
-      new AppointmentRepository(),
+    constructor(
+        private readonly appointmentRepository =
+            new AppointmentRepository(),
 
-    private readonly occupancyService =
-      new AppointmentOccupancyService(),
-
-    private readonly conflictService =
-      new AppointmentConflictService(),
-  ) { }
-
-  /*
-   * Gera a grade inicial considerando:
-   *
-   * - dias de atendimento;
-   * - abertura;
-   * - fechamento;
-   * - intervalo dos slots;
-   * - duração total do serviço.
-   */
-  generatePossibleSlots(
-    input: GenerateSlotsInput,
-  ): AvailabilitySlot[] {
-    const {
-      dateKey,
-      durationMinutes,
-    } = input;
-
-    if (
-      !Number.isInteger(
-        durationMinutes,
-      ) ||
-      durationMinutes <= 0
-    ) {
-      throw new Error(
-        "A duração do serviço deve ser maior que zero.",
-      );
-    }
-
-    const date =
-      this.parseDateKey(
-        dateKey,
-      );
-
-    const weekDay =
-      date.getUTCDay();
-
-    const isWorkingDay =
-      APPOINTMENT_CONFIG
-        .workingWeekDays
-        .some(
-          (day) =>
-            day === weekDay,
-        );
-
-    if (!isWorkingDay) {
-      return [];
-    }
-
-    const openingMinutes =
-      this.timeToMinutes(
-        APPOINTMENT_CONFIG
-          .openingTime,
-      );
-
-    const closingMinutes =
-      this.timeToMinutes(
-        APPOINTMENT_CONFIG
-          .closingTime,
-      );
-
-    const slotIntervalMinutes =
-      APPOINTMENT_CONFIG
-        .slotIntervalMinutes;
+        private readonly conflictService =
+            new AppointmentConflictService(),
+    ) {}
 
     /*
-     * O serviço inteiro precisa terminar
-     * dentro do expediente.
-     */
-    if (
-      durationMinutes >
-      closingMinutes -
-      openingMinutes
-    ) {
-      return [];
-    }
-
-    const slots:
-      AvailabilitySlot[] =
-      [];
-
-    const lastPossibleStart =
-      closingMinutes -
-      durationMinutes;
-
-    for (
-      let startMinutes =
-        openingMinutes;
-
-      startMinutes <=
-      lastPossibleStart;
-
-      startMinutes +=
-      slotIntervalMinutes
-    ) {
-      const endMinutes =
-        startMinutes +
-        durationMinutes;
-
-      slots.push({
-        dateKey,
-
-        startTime:
-          this.minutesToTime(
-            startMinutes,
-          ),
-
-        endTime:
-          this.minutesToTime(
-            endMinutes,
-          ),
-
-        startMinutes,
-        endMinutes,
-      });
-    }
-
-    return slots;
-  }
-
-  /*
-   * Retorna os horários realmente
-   * disponíveis para determinado
-   * serviço e salão.
-   */
-  async getAvailableSlotsForSalon(
-    salonId: string,
-    input: GetAvailableSlotsInput,
-  ): Promise<AvailabilitySlot[]> {
-    /*
-     * 1. Gera todos os horários
-     * teoricamente possíveis.
-     */
-    const possibleSlots =
-      this.generatePossibleSlots({
-        dateKey:
-          input.dateKey,
-
-        durationMinutes:
-          input.durationMinutes,
-      });
-
-    if (
-      possibleSlots.length ===
-      0
-    ) {
-      return [];
-    }
-
-    /*
-     * 2. Descobre quais períodos do
-     * NOVO serviço realmente ocupam
-     * a profissional.
-     */
-    const candidateOccupancy =
-      this.occupancyService
-        .buildProfessionalOccupancy({
-          durationMinutes:
-            input.durationMinutes,
-
-          phases:
-            input.phases,
-        });
-
-    /*
-     * Se nenhuma fase ocupa a
-     * profissional, não existe conflito
-     * com outros atendimentos.
-     */
-    if (
-      candidateOccupancy.length ===
-      0
-    ) {
-      return possibleSlots;
-    }
-
-    /*
-     * 3. Busca todos os agendamentos
-     * daquele salão e daquele dia.
-     */
-    const appointments =
-      await this.appointmentRepository
-        .findByDateKey(
-          salonId,
-          input.dateKey,
-        );
-
-    /*
-     * 4. O ConflictService agora é
-     * responsável por toda a regra
-     * de colisão.
+     * =================================
+     * HORÁRIOS OFICIAIS
+     * =================================
      *
-     * Não duplicamos mais essa lógica
-     * dentro do AvailabilityService.
+     * Segunda a sexta:
+     *
+     * 08:00
+     * 13:00
+     * 17:00
+     *
+     * Sábado:
+     *
+     * 07:00
+     * 08:00
+     * 13:00
+     * 17:00
+     *
+     * Domingo:
+     *
+     * sem atendimento.
      */
-    return possibleSlots.filter(
-      (slot) =>
-        !this.conflictService
-          .hasConflictAtLocalStart({
-            candidateStartMinutes:
-              slot.startMinutes,
+    generatePossibleSlots(
+        input:
+            GenerateSlotsInput,
+    ): AvailabilitySlot[] {
+        const {
+            dateKey,
+            durationMinutes,
+        } =
+            input;
 
-            candidateDurationMinutes:
-              input.durationMinutes,
+        if (
+            !Number.isInteger(
+                durationMinutes,
+            ) ||
+            durationMinutes <=
+                0
+        ) {
+            throw new Error(
+                "A duração do serviço deve ser maior que zero.",
+            );
+        }
 
-            candidateOccupancy,
+        const date =
+            this.parseDateKey(
+                dateKey,
+            );
 
-            appointments,
-          }),
-    );
-  }
+        const weekDay =
+            date.getUTCDay();
 
-  private parseDateKey(
-    dateKey: string,
-  ): Date {
-    const match =
-      /^(\d{4})-(\d{2})-(\d{2})$/.exec(
-        dateKey,
-      );
+        const isWorkingDay =
+            APPOINTMENT_CONFIG
+                .workingWeekDays
+                .some(
+                    (
+                        day,
+                    ) =>
+                        day ===
+                        weekDay,
+                );
 
-    if (!match) {
-      throw new Error(
-        "Data inválida. Utilize o formato YYYY-MM-DD.",
-      );
+        if (!isWorkingDay) {
+            return [];
+        }
+
+        const configuredStartTimes =
+            APPOINTMENT_CONFIG
+                .startTimesByWeekDay[
+                    weekDay
+                ];
+
+        if (
+            !configuredStartTimes ||
+            configuredStartTimes
+                .length === 0
+        ) {
+            return [];
+        }
+
+        return configuredStartTimes.map(
+            (
+                startTime,
+            ) => {
+                const startMinutes =
+                    this.timeToMinutes(
+                        startTime,
+                    );
+
+                /*
+                 * A duração continua
+                 * definindo o término
+                 * PREVISTO do serviço.
+                 *
+                 * Ela apenas não bloqueia
+                 * outro horário fixo.
+                 */
+                const endMinutes =
+                    startMinutes +
+                    durationMinutes;
+
+                return {
+                    dateKey,
+
+                    startTime,
+
+                    endTime:
+                        this.minutesToTime(
+                            endMinutes,
+                        ),
+
+                    startMinutes,
+
+                    endMinutes,
+                };
+            },
+        );
     }
 
-    const year =
-      Number(
-        match[1],
-      );
+    /*
+     * =================================
+     * DISPONIBILIDADE
+     * =================================
+     */
+    async getAvailableSlotsForSalon(
+        salonId:
+            string,
 
-    const month =
-      Number(
-        match[2],
-      );
+        input:
+            GetAvailableSlotsInput,
+    ): Promise<
+        AvailabilitySlot[]
+    > {
+        /*
+         * phases continua fazendo parte
+         * do contrato, mas não participa
+         * mais do cálculo de conflito.
+         */
+        void input.phases;
 
-    const day =
-      Number(
-        match[3],
-      );
+        /*
+         * 1. Gera somente os horários
+         * oficiais daquele dia.
+         */
+        const possibleSlots =
+            this.generatePossibleSlots({
+                dateKey:
+                    input.dateKey,
 
-    const date =
-      new Date(
-        Date.UTC(
-          year,
-          month - 1,
-          day,
-          12,
-          0,
-          0,
-        ),
-      );
+                durationMinutes:
+                    input
+                        .durationMinutes,
+            });
 
-    const valid =
-      date.getUTCFullYear() ===
-      year &&
-      date.getUTCMonth() ===
-      month - 1 &&
-      date.getUTCDate() ===
-      day;
+        if (
+            possibleSlots.length ===
+            0
+        ) {
+            return [];
+        }
 
-    if (!valid) {
-      throw new Error(
-        "Data inválida.",
-      );
+        /*
+         * 2. Busca os agendamentos
+         * existentes naquele dia.
+         */
+        const appointments =
+            await this
+                .appointmentRepository
+                .findByDateKey(
+                    salonId,
+                    input.dateKey,
+                );
+
+        /*
+         * 3. Remove somente horários
+         * que já possuam outro
+         * Appointment bloqueante
+         * começando EXATAMENTE naquele
+         * mesmo horário.
+         *
+         * Exemplo:
+         *
+         * 07:00 confirmado
+         *
+         * 07:00 ❌
+         * 08:00 ✅
+         * 13:00 ✅
+         * 17:00 ✅
+         */
+        return possibleSlots.filter(
+            (
+                slot,
+            ) =>
+                !this
+                    .conflictService
+                    .hasConflictAtLocalStart({
+                        candidateStartMinutes:
+                            slot
+                                .startMinutes,
+
+                        appointments,
+                    }),
+        );
     }
 
-    return date;
-  }
+    /*
+     * =================================
+     * DATA
+     * =================================
+     */
+    private parseDateKey(
+        dateKey:
+            string,
+    ): Date {
+        const match =
+            /^(\d{4})-(\d{2})-(\d{2})$/.exec(
+                dateKey,
+            );
 
-  private timeToMinutes(
-    time: string,
-  ): number {
-    const match =
-      /^(\d{2}):(\d{2})$/.exec(
-        time,
-      );
+        if (!match) {
+            throw new Error(
+                "Data inválida. Utilize o formato YYYY-MM-DD.",
+            );
+        }
 
-    if (!match) {
-      throw new Error(
-        "Horário de configuração inválido.",
-      );
+        const yearText =
+            match[1];
+
+        const monthText =
+            match[2];
+
+        const dayText =
+            match[3];
+
+        if (
+            yearText ===
+                undefined ||
+            monthText ===
+                undefined ||
+            dayText ===
+                undefined
+        ) {
+            throw new Error(
+                "Data inválida. Utilize o formato YYYY-MM-DD.",
+            );
+        }
+
+        const year =
+            Number(
+                yearText,
+            );
+
+        const month =
+            Number(
+                monthText,
+            );
+
+        const day =
+            Number(
+                dayText,
+            );
+
+        const date =
+            new Date(
+                Date.UTC(
+                    year,
+                    month - 1,
+                    day,
+                    12,
+                    0,
+                    0,
+                ),
+            );
+
+        const valid =
+            date
+                .getUTCFullYear() ===
+                year &&
+            date
+                .getUTCMonth() ===
+                month - 1 &&
+            date
+                .getUTCDate() ===
+                day;
+
+        if (!valid) {
+            throw new Error(
+                "Data inválida.",
+            );
+        }
+
+        return date;
     }
 
-    const hours =
-      Number(
-        match[1],
-      );
+    /*
+     * =================================
+     * HORÁRIO → MINUTOS
+     * =================================
+     */
+    private timeToMinutes(
+        time:
+            string,
+    ): number {
+        const match =
+            /^(\d{2}):(\d{2})$/.exec(
+                time,
+            );
 
-    const minutes =
-      Number(
-        match[2],
-      );
+        if (!match) {
+            throw new Error(
+                "Horário de configuração inválido.",
+            );
+        }
 
-    if (
-      hours < 0 ||
-      hours > 23 ||
-      minutes < 0 ||
-      minutes > 59
-    ) {
-      throw new Error(
-        "Horário de configuração inválido.",
-      );
+        const hourText =
+            match[1];
+
+        const minuteText =
+            match[2];
+
+        if (
+            hourText ===
+                undefined ||
+            minuteText ===
+                undefined
+        ) {
+            throw new Error(
+                "Horário de configuração inválido.",
+            );
+        }
+
+        const hours =
+            Number(
+                hourText,
+            );
+
+        const minutes =
+            Number(
+                minuteText,
+            );
+
+        if (
+            hours < 0 ||
+            hours > 23 ||
+            minutes < 0 ||
+            minutes > 59
+        ) {
+            throw new Error(
+                "Horário de configuração inválido.",
+            );
+        }
+
+        return (
+            hours * 60 +
+            minutes
+        );
     }
 
-    return (
-      hours * 60 +
-      minutes
-    );
-  }
+    /*
+     * =================================
+     * MINUTOS → HORÁRIO
+     * =================================
+     */
+    private minutesToTime(
+        totalMinutes:
+            number,
+    ): string {
+        const hours =
+            Math.floor(
+                totalMinutes /
+                    60,
+            );
 
-  private minutesToTime(
-    totalMinutes: number,
-  ): string {
-    const hours =
-      Math.floor(
-        totalMinutes / 60,
-      );
+        const minutes =
+            totalMinutes %
+            60;
 
-    const minutes =
-      totalMinutes % 60;
-
-    return `${String(
-      hours,
-    ).padStart(
-      2,
-      "0",
-    )}:${String(
-      minutes,
-    ).padStart(
-      2,
-      "0",
-    )}`;
-  }
+        return `${String(
+            hours,
+        ).padStart(
+            2,
+            "0",
+        )}:${String(
+            minutes,
+        ).padStart(
+            2,
+            "0",
+        )}`;
+    }
 }

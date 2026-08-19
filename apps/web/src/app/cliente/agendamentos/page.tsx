@@ -1,9 +1,12 @@
 "use client";
 
 import {
+  APPOINTMENT_PRICE_SOURCE,
   APPOINTMENT_STATUS,
+  SERVICE_PRICE_TYPES,
   type Appointment,
   type AppointmentStatus,
+  type ServicePriceType,
 } from "@priscila/shared";
 
 import {
@@ -16,6 +19,7 @@ import {
   History,
   LoaderCircle,
   Sparkles,
+  Tag,
   TriangleAlert,
 } from "lucide-react";
 
@@ -25,6 +29,10 @@ import {
   useClientAppointments,
 } from "@/features/appointments/hooks/useClientAppointments";
 
+import {
+  useClientBookableServices,
+} from "@/features/appointments/hooks/useClientBookableServices";
+
 const SALON_TIME_ZONE =
   "America/Sao_Paulo";
 
@@ -32,10 +40,18 @@ const dateFormatter =
   new Intl.DateTimeFormat(
     "pt-BR",
     {
-      weekday: "short",
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
+      weekday:
+        "short",
+
+      day:
+        "2-digit",
+
+      month:
+        "long",
+
+      year:
+        "numeric",
+
       timeZone:
         SALON_TIME_ZONE,
     },
@@ -45,9 +61,15 @@ const timeFormatter =
   new Intl.DateTimeFormat(
     "pt-BR",
     {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
+      hour:
+        "2-digit",
+
+      minute:
+        "2-digit",
+
+      hour12:
+        false,
+
       timeZone:
         SALON_TIME_ZONE,
     },
@@ -57,16 +79,22 @@ const currencyFormatter =
   new Intl.NumberFormat(
     "pt-BR",
     {
-      style: "currency",
-      currency: "BRL",
+      style:
+        "currency",
+
+      currency:
+        "BRL",
     },
   );
 
 function formatDate(
-  value: string,
+  value:
+    string,
 ) {
   const date =
-    new Date(value);
+    new Date(
+      value,
+    );
 
   if (
     Number.isNaN(
@@ -77,14 +105,19 @@ function formatDate(
   }
 
   return dateFormatter
-    .format(date);
+    .format(
+      date,
+    );
 }
 
 function formatTime(
-  value: string,
+  value:
+    string,
 ) {
   const date =
-    new Date(value);
+    new Date(
+      value,
+    );
 
   if (
     Number.isNaN(
@@ -95,15 +128,19 @@ function formatTime(
   }
 
   return timeFormatter
-    .format(date);
+    .format(
+      date,
+    );
 }
 
 function formatPrice(
-  priceCents: number,
+  priceCents:
+    number,
 ) {
   return currencyFormatter
     .format(
-      priceCents / 100,
+      priceCents /
+        100,
     );
 }
 
@@ -111,7 +148,9 @@ function getStatusConfig(
   status:
     AppointmentStatus,
 ) {
-  switch (status) {
+  switch (
+    status
+  ) {
     case APPOINTMENT_STATUS
       .PENDING_APPROVAL:
       return {
@@ -206,11 +245,15 @@ function getStatusConfig(
 
 type AppointmentCardProps = {
   appointment:
-  Appointment;
+    Appointment;
+
+  fallbackPriceType?:
+    ServicePriceType;
 };
 
 function AppointmentCard({
   appointment,
+  fallbackPriceType,
 }: AppointmentCardProps) {
   const status =
     getStatusConfig(
@@ -222,17 +265,59 @@ function AppointmentCard({
 
   const showRejectionReason =
     appointment.status ===
-    APPOINTMENT_STATUS.REJECTED &&
+      APPOINTMENT_STATUS.REJECTED &&
     Boolean(
-      appointment.rejectionReason,
+      appointment
+        .rejectionReason,
     );
 
   const showCancellationReason =
     appointment.status ===
-    APPOINTMENT_STATUS.CANCELLED &&
+      APPOINTMENT_STATUS.CANCELLED &&
     Boolean(
-      appointment.cancellationReason,
+      appointment
+        .cancellationReason,
     );
+
+  /*
+   * Agendamentos novos:
+   * usa o snapshot.
+   *
+   * Agendamentos antigos:
+   * utiliza temporariamente o tipo
+   * atual do serviço.
+   *
+   * Se nem isso estiver disponível,
+   * considera FIXED.
+   */
+  const priceType =
+    appointment
+      .servicePriceTypeSnapshot ??
+    fallbackPriceType ??
+    SERVICE_PRICE_TYPES
+      .FIXED;
+
+  const hasSpecialPrice =
+    appointment.priceSource ===
+    APPOINTMENT_PRICE_SOURCE
+      .CLIENT_SPECIAL;
+
+  const isStartingFrom =
+    priceType ===
+      SERVICE_PRICE_TYPES
+        .STARTING_FROM &&
+    !hasSpecialPrice;
+
+  /*
+   * Quando futuramente o valor final
+   * for informado antes da conclusão,
+   * um COMPLETED passa a representar
+   * valor efetivamente fechado.
+   */
+  const showStartingFrom =
+    isStartingFrom &&
+    appointment.status !==
+      APPOINTMENT_STATUS.COMPLETED;
 
   return (
     <article className="overflow-hidden rounded-3xl border border-[#E5E0D5] bg-white shadow-sm">
@@ -240,6 +325,7 @@ function AppointmentCard({
         <span
           className={[
             "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold",
+
             status.className,
           ].join(
             " ",
@@ -247,12 +333,15 @@ function AppointmentCard({
         >
           <StatusIcon className="size-3.5" />
 
-          {status.label}
+          {
+            status.label
+          }
         </span>
 
         <span className="text-xs font-medium text-[#92978E]">
           {formatDate(
-            appointment.startsAt,
+            appointment
+              .startsAt,
           )}
         </span>
       </div>
@@ -281,7 +370,8 @@ function AppointmentCard({
 
                 <span className="capitalize">
                   {formatDate(
-                    appointment.startsAt,
+                    appointment
+                      .startsAt,
                   )}
                 </span>
               </div>
@@ -291,7 +381,8 @@ function AppointmentCard({
 
                 <span>
                   {formatTime(
-                    appointment.startsAt,
+                    appointment
+                      .startsAt,
                   )}
                 </span>
               </div>
@@ -328,10 +419,21 @@ function AppointmentCard({
             )}
           </div>
 
-          <div className="border-t border-[#EEEAE1] pt-4 sm:min-w-36 sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0">
+          <div className="border-t border-[#EEEAE1] pt-4 sm:min-w-40 sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0">
             <p className="text-xs font-medium uppercase tracking-wide text-[#92978E]">
-              Valor
+              {showStartingFrom
+                ? "Valor inicial"
+                : appointment.status ===
+                    APPOINTMENT_STATUS.COMPLETED
+                  ? "Valor final"
+                  : "Valor"}
             </p>
+
+            {showStartingFrom && (
+              <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#788273]">
+                A partir de
+              </p>
+            )}
 
             <p className="mt-1 text-lg font-bold text-[#304229]">
               {formatPrice(
@@ -339,6 +441,20 @@ function AppointmentCard({
                   .chargedPriceCents,
               )}
             </p>
+
+            {hasSpecialPrice && (
+              <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-[#F5EBD2] px-2.5 py-1 text-[11px] font-semibold text-[#8A6A2F]">
+                <Tag className="size-3" />
+
+                Seu preço
+              </span>
+            )}
+
+            {showStartingFrom && (
+              <p className="mt-2 max-w-40 text-[11px] leading-4 text-[#7A8075]">
+                O valor final pode variar.
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -356,6 +472,21 @@ export default function ClientAppointmentsPage() {
   } =
     useClientAppointments();
 
+  /*
+   * Utilizamos o catálogo também
+   * como fallback para agendamentos
+   * antigos que ainda não possuem
+   * servicePriceTypeSnapshot.
+   *
+   * Agendamentos novos não dependem
+   * desse fallback.
+   */
+  const {
+    data:
+      services = [],
+  } =
+    useClientBookableServices();
+
   const upcoming =
     data?.upcoming ??
     [];
@@ -363,6 +494,19 @@ export default function ClientAppointmentsPage() {
   const history =
     data?.history ??
     [];
+
+  function getFallbackPriceType(
+    appointment:
+      Appointment,
+  ) {
+    return services.find(
+      (
+        service,
+      ) =>
+        service.id ===
+        appointment.serviceId,
+    )?.priceType;
+  }
 
   return (
     <div className="space-y-8">
@@ -521,6 +665,11 @@ export default function ClientAppointmentsPage() {
                         appointment={
                           appointment
                         }
+                        fallbackPriceType={
+                          getFallbackPriceType(
+                            appointment,
+                          )
+                        }
                       />
                     ),
                   )}
@@ -578,6 +727,11 @@ export default function ClientAppointmentsPage() {
                         }
                         appointment={
                           appointment
+                        }
+                        fallbackPriceType={
+                          getFallbackPriceType(
+                            appointment,
+                          )
                         }
                       />
                     ),

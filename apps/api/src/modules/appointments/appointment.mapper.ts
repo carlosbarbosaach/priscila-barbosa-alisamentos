@@ -7,7 +7,8 @@ import type {
 } from "./appointment.types.js";
 
 export function mapAppointmentEntityToAppointment(
-  appointment: AppointmentEntity,
+  appointment:
+    AppointmentEntity,
 ): Appointment {
   return {
     id:
@@ -39,25 +40,44 @@ export function mapAppointmentEntityToAppointment(
       appointment.durationMinutes,
 
     clientNameSnapshot:
-      appointment.clientNameSnapshot,
+      appointment
+        .clientNameSnapshot,
 
     clientPhoneSnapshot:
-      appointment.clientPhoneSnapshot,
+      appointment
+        .clientPhoneSnapshot,
 
     serviceNameSnapshot:
-      appointment.serviceNameSnapshot,
+      appointment
+        .serviceNameSnapshot,
+
+    /*
+     * Agendamentos antigos não possuem
+     * este snapshot.
+     *
+     * Nesse caso enviamos null para o
+     * frontend poder utilizar um fallback
+     * temporário pelo serviço atual.
+     */
+    servicePriceTypeSnapshot:
+      appointment
+        .servicePriceTypeSnapshot ??
+      null,
 
     chargedPriceCents:
-      appointment.chargedPriceCents,
+      appointment
+        .chargedPriceCents,
 
     priceSource:
       appointment.priceSource,
 
     rejectionReason:
-      appointment.rejectionReason,
+      appointment
+        .rejectionReason,
 
     cancellationReason:
-      appointment.cancellationReason,
+      appointment
+        .cancellationReason,
 
     createdAt:
       appointment.createdAt

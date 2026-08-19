@@ -1,44 +1,72 @@
-import type { Service } from "@priscila/shared";
-import { Timestamp } from "firebase-admin/firestore";
+import type {
+    Service,
+} from "@priscila/shared";
 
-import { mapServiceEntityToService } from "./service.mapper.js";
-import { ServiceRepository } from "./service.repository.js";
+import {
+    Timestamp,
+} from "firebase-admin/firestore";
+
+import {
+    mapServiceEntityToService,
+} from "./service.mapper.js";
+
+import {
+    ServiceRepository,
+} from "./service.repository.js";
+
 import type {
     CreateServiceInput,
     UpdateServiceInput,
 } from "./service.schema.js";
-import type { ServiceDocument } from "./service.types.js";
+
+import type {
+    ServiceDocument,
+} from "./service.types.js";
 
 export class ServiceService {
     constructor(
         private readonly serviceRepository =
             new ServiceRepository(),
-    ) { }
+    ) {}
 
     async findById(
-        salonId: string,
-        serviceId: string,
-    ): Promise<Service | null> {
+        salonId:
+            string,
+
+        serviceId:
+            string,
+    ): Promise<
+        Service | null
+    > {
         const service =
-            await this.serviceRepository.findById(
-                salonId,
-                serviceId,
-            );
+            await this
+                .serviceRepository
+                .findById(
+                    salonId,
+                    serviceId,
+                );
 
         if (!service) {
             return null;
         }
 
-        return mapServiceEntityToService(service);
+        return mapServiceEntityToService(
+            service,
+        );
     }
 
     async findAll(
-        salonId: string,
-    ): Promise<Service[]> {
+        salonId:
+            string,
+    ): Promise<
+        Service[]
+    > {
         const services =
-            await this.serviceRepository.findAllBySalon(
-                salonId,
-            );
+            await this
+                .serviceRepository
+                .findAllBySalon(
+                    salonId,
+                );
 
         return services.map(
             mapServiceEntityToService,
@@ -46,15 +74,24 @@ export class ServiceService {
     }
 
     async create(
-        salonId: string,
-        serviceId: string,
-        input: CreateServiceInput,
-    ): Promise<Service> {
+        salonId:
+            string,
+
+        serviceId:
+            string,
+
+        input:
+            CreateServiceInput,
+    ): Promise<
+        Service
+    > {
         const existingService =
-            await this.serviceRepository.findById(
-                salonId,
-                serviceId,
-            );
+            await this
+                .serviceRepository
+                .findById(
+                    salonId,
+                    serviceId,
+                );
 
         if (existingService) {
             throw new Error(
@@ -62,38 +99,67 @@ export class ServiceService {
             );
         }
 
-        const now = Timestamp.now();
+        const now =
+            Timestamp.now();
 
-        await this.serviceRepository.create(
-            serviceId,
-            {
-                salonId,
+        await this
+            .serviceRepository
+            .create(
+                serviceId,
+                {
+                    salonId,
 
-                name: input.name,
-                description: null,
+                    name:
+                        input.name,
 
-                // Informação interna.
-                category: "SERVICOS",
+                    description:
+                        null,
 
-                // Temporariamente usamos 3 horas como duração padrão.
-                // Depois a agenda poderá receber uma configuração própria.
-                durationMinutes: 180,
+                    /*
+                     * Informação interna.
+                     */
+                    category:
+                        "SERVICOS",
 
-                defaultPriceCents:
-                    input.defaultPriceCents,
+                    /*
+                     * Temporariamente
+                     * usamos 3 horas como
+                     * duração padrão.
+                     */
+                    durationMinutes:
+                        180,
 
-                active: true,
+                    defaultPriceCents:
+                        input
+                            .defaultPriceCents,
 
-                createdAt: now,
-                updatedAt: now,
-            },
-        );
+                    /*
+                     * FIXED
+                     * ou
+                     * STARTING_FROM
+                     */
+                    priceType:
+                        input
+                            .priceType,
+
+                    active:
+                        true,
+
+                    createdAt:
+                        now,
+
+                    updatedAt:
+                        now,
+                },
+            );
 
         const createdService =
-            await this.serviceRepository.findById(
-                salonId,
-                serviceId,
-            );
+            await this
+                .serviceRepository
+                .findById(
+                    salonId,
+                    serviceId,
+                );
 
         if (!createdService) {
             throw new Error(
@@ -107,15 +173,24 @@ export class ServiceService {
     }
 
     async update(
-        salonId: string,
-        serviceId: string,
-        input: UpdateServiceInput,
-    ): Promise<Service> {
+        salonId:
+            string,
+
+        serviceId:
+            string,
+
+        input:
+            UpdateServiceInput,
+    ): Promise<
+        Service
+    > {
         const existingService =
-            await this.serviceRepository.findById(
-                salonId,
-                serviceId,
-            );
+            await this
+                .serviceRepository
+                .findById(
+                    salonId,
+                    serviceId,
+                );
 
         if (!existingService) {
             throw new Error(
@@ -123,30 +198,54 @@ export class ServiceService {
             );
         }
 
-        const updateData: Partial<ServiceDocument> = {
-            updatedAt: Timestamp.now(),
-        };
+        const updateData:
+            Partial<ServiceDocument> = {
+                updatedAt:
+                    Timestamp.now(),
+            };
 
-        if (input.name !== undefined) {
-            updateData.name = input.name;
+        if (
+            input.name !==
+            undefined
+        ) {
+            updateData.name =
+                input.name;
         }
 
-        if (input.defaultPriceCents !== undefined) {
-            updateData.defaultPriceCents =
-                input.defaultPriceCents;
+        if (
+            input
+                .defaultPriceCents !==
+            undefined
+        ) {
+            updateData
+                .defaultPriceCents =
+                input
+                    .defaultPriceCents;
         }
 
-        await this.serviceRepository.update(
-            salonId,
-            serviceId,
-            updateData,
-        );
+        if (
+            input.priceType !==
+            undefined
+        ) {
+            updateData.priceType =
+                input.priceType;
+        }
 
-        const updatedService =
-            await this.serviceRepository.findById(
+        await this
+            .serviceRepository
+            .update(
                 salonId,
                 serviceId,
+                updateData,
             );
+
+        const updatedService =
+            await this
+                .serviceRepository
+                .findById(
+                    salonId,
+                    serviceId,
+                );
 
         if (!updatedService) {
             throw new Error(
@@ -160,24 +259,37 @@ export class ServiceService {
     }
 
     async setActive(
-        salonId: string,
-        serviceId: string,
-        active: boolean,
-    ): Promise<Service> {
-        await this.serviceRepository.update(
-            salonId,
-            serviceId,
-            {
-                active,
-                updatedAt: Timestamp.now(),
-            },
-        );
+        salonId:
+            string,
 
-        const updatedService =
-            await this.serviceRepository.findById(
+        serviceId:
+            string,
+
+        active:
+            boolean,
+    ): Promise<
+        Service
+    > {
+        await this
+            .serviceRepository
+            .update(
                 salonId,
                 serviceId,
+                {
+                    active,
+
+                    updatedAt:
+                        Timestamp.now(),
+                },
             );
+
+        const updatedService =
+            await this
+                .serviceRepository
+                .findById(
+                    salonId,
+                    serviceId,
+                );
 
         if (!updatedService) {
             throw new Error(
