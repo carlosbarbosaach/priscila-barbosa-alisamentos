@@ -19,6 +19,7 @@ import {
   CircleX,
   Clock3,
   LoaderCircle,
+  Phone,
   Play,
   RefreshCw,
   Scissors,
@@ -98,8 +99,174 @@ const currencyFormatter =
 
 type AdminAgendaPageContentProps = {
   initialDateKey?:
-  string;
+    string;
 };
+
+/*
+ * =================================
+ * TELEFONE
+ * =================================
+ *
+ * Exemplos aceitos:
+ *
+ * 5548996825149
+ * 48996825149
+ * +55 (48) 99682-5149
+ *
+ * Resultado:
+ *
+ * +55 (48) 99682-5149
+ */
+function formatBrazilPhone(
+  phone:
+    string,
+) {
+  const digits =
+    phone.replace(
+      /\D/g,
+      "",
+    );
+
+  /*
+   * Celular com +55.
+   *
+   * 5548996825149
+   */
+  if (
+    digits.length ===
+      13 &&
+    digits.startsWith(
+      "55",
+    )
+  ) {
+    const countryCode =
+      digits.slice(
+        0,
+        2,
+      );
+
+    const areaCode =
+      digits.slice(
+        2,
+        4,
+      );
+
+    const firstPart =
+      digits.slice(
+        4,
+        9,
+      );
+
+    const secondPart =
+      digits.slice(
+        9,
+        13,
+      );
+
+    return `+${countryCode} (${areaCode}) ${firstPart}-${secondPart}`;
+  }
+
+  /*
+   * Celular sem +55.
+   *
+   * 48996825149
+   */
+  if (
+    digits.length ===
+    11
+  ) {
+    const areaCode =
+      digits.slice(
+        0,
+        2,
+      );
+
+    const firstPart =
+      digits.slice(
+        2,
+        7,
+      );
+
+    const secondPart =
+      digits.slice(
+        7,
+        11,
+      );
+
+    return `+55 (${areaCode}) ${firstPart}-${secondPart}`;
+  }
+
+  /*
+   * Telefone fixo com +55.
+   */
+  if (
+    digits.length ===
+      12 &&
+    digits.startsWith(
+      "55",
+    )
+  ) {
+    const countryCode =
+      digits.slice(
+        0,
+        2,
+      );
+
+    const areaCode =
+      digits.slice(
+        2,
+        4,
+      );
+
+    const firstPart =
+      digits.slice(
+        4,
+        8,
+      );
+
+    const secondPart =
+      digits.slice(
+        8,
+        12,
+      );
+
+    return `+${countryCode} (${areaCode}) ${firstPart}-${secondPart}`;
+  }
+
+  /*
+   * Telefone fixo sem +55.
+   */
+  if (
+    digits.length ===
+    10
+  ) {
+    const areaCode =
+      digits.slice(
+        0,
+        2,
+      );
+
+    const firstPart =
+      digits.slice(
+        2,
+        6,
+      );
+
+    const secondPart =
+      digits.slice(
+        6,
+        10,
+      );
+
+    return `+55 (${areaCode}) ${firstPart}-${secondPart}`;
+  }
+
+  /*
+   * Não alteramos números antigos
+   * que estejam fora do padrão.
+   */
+  return phone;
+}
 
 function getTodayDateKey() {
   const formatter =
@@ -209,19 +376,19 @@ function isValidDateKey(
       Date.UTC(
         year,
         month -
-        1,
+          1,
         day,
       ),
     );
 
   return (
     date.getUTCFullYear() ===
-    year &&
+      year &&
     date.getUTCMonth() ===
-    month -
-    1 &&
+      month -
+        1 &&
     date.getUTCDate() ===
-    day
+      day
   );
 }
 
@@ -250,14 +417,14 @@ function shiftDateKey(
       Date.UTC(
         year,
         month -
-        1,
+          1,
         day,
       ),
     );
 
   date.setUTCDate(
     date.getUTCDate() +
-    amount,
+      amount,
   );
 
   const nextYear =
@@ -268,7 +435,7 @@ function shiftDateKey(
   const nextMonth =
     String(
       date.getUTCMonth() +
-      1,
+        1,
     ).padStart(
       2,
       "0",
@@ -307,7 +474,7 @@ function formatSelectedDate(
       Date.UTC(
         year,
         month -
-        1,
+          1,
         day,
         12,
       ),
@@ -386,7 +553,7 @@ function formatPrice(
   return currencyFormatter
     .format(
       priceCents /
-      100,
+        100,
     );
 }
 
@@ -395,7 +562,7 @@ function getAppointmentStatusConfig(
     AppointmentStatus,
 ) {
   switch (
-  status
+    status
   ) {
     case APPOINTMENT_STATUS
       .PENDING_APPROVAL:
@@ -570,7 +737,7 @@ export function AdminAgendaPageContent({
 
   const {
     data:
-    appointments = [],
+      appointments = [],
 
     isLoading,
 
@@ -585,13 +752,13 @@ export function AdminAgendaPageContent({
     );
 
   /*
-   * Usado apenas como fallback
-   * para agendamentos antigos
-   * sem servicePriceTypeSnapshot.
+   * Fallback para agendamentos
+   * antigos sem snapshot do
+   * tipo de preço.
    */
   const {
     data:
-    services = [],
+      services = [],
   } =
     useServices();
 
@@ -627,10 +794,6 @@ export function AdminAgendaPageContent({
     appointment:
       Appointment,
   ): ServicePriceType | null {
-    /*
-     * Agendamento novo:
-     * utiliza snapshot histórico.
-     */
     if (
       appointment
         .servicePriceTypeSnapshot
@@ -639,11 +802,6 @@ export function AdminAgendaPageContent({
         .servicePriceTypeSnapshot;
     }
 
-    /*
-     * Agendamento antigo:
-     * consulta temporariamente
-     * o serviço atual.
-     */
     const service =
       services.find(
         (
@@ -664,10 +822,6 @@ export function AdminAgendaPageContent({
     appointment:
       Appointment,
   ) {
-    /*
-     * Preço especial da cliente
-     * já é um preço definido.
-     */
     if (
       appointment.priceSource ===
       APPOINTMENT_PRICE_SOURCE
@@ -681,21 +835,12 @@ export function AdminAgendaPageContent({
         appointment,
       );
 
-    /*
-     * null:
-     * appointment legado cujo serviço
-     * também não foi encontrado.
-     *
-     * Por segurança pedimos valor final
-     * em vez de concluir com preço
-     * possivelmente incorreto.
-     */
     return (
       priceType ===
-      SERVICE_PRICE_TYPES
-        .STARTING_FROM ||
+        SERVICE_PRICE_TYPES
+          .STARTING_FROM ||
       priceType ===
-      null
+        null
     );
   }
 
@@ -768,11 +913,6 @@ export function AdminAgendaPageContent({
     );
   }
 
-  /*
-   * PENDING_APPROVAL
-   * ↓
-   * CONFIRMED
-   */
   async function handleConfirmAppointment(
     appointmentId:
       string,
@@ -805,7 +945,7 @@ export function AdminAgendaPageContent({
           appointmentId,
         );
     } catch (
-    error
+      error
     ) {
       setActionError(
         error instanceof
@@ -820,11 +960,6 @@ export function AdminAgendaPageContent({
     }
   }
 
-  /*
-   * CONFIRMED
-   * ↓
-   * IN_PROGRESS
-   */
   async function handleStartAppointment(
     appointmentId:
       string,
@@ -849,7 +984,7 @@ export function AdminAgendaPageContent({
           appointmentId,
         );
     } catch (
-    error
+      error
     ) {
       setActionError(
         error instanceof
@@ -864,11 +999,6 @@ export function AdminAgendaPageContent({
     }
   }
 
-  /*
-   * IN_PROGRESS
-   * ↓
-   * COMPLETED
-   */
   async function handleCompleteAppointment(
     appointment:
       Appointment,
@@ -883,11 +1013,6 @@ export function AdminAgendaPageContent({
       null,
     );
 
-    /*
-     * Serviço "A partir de"
-     * precisa informar o valor
-     * final antes de concluir.
-     */
     if (
       isVariablePriceAppointment(
         appointment,
@@ -900,10 +1025,6 @@ export function AdminAgendaPageContent({
       return;
     }
 
-    /*
-     * FIXED / CLIENT_SPECIAL
-     * continua concluindo direto.
-     */
     setCompletingAppointmentId(
       appointment.id,
     );
@@ -915,7 +1036,7 @@ export function AdminAgendaPageContent({
             appointment.id,
         });
     } catch (
-    error
+      error
     ) {
       setActionError(
         error instanceof
@@ -1077,7 +1198,7 @@ export function AdminAgendaPageContent({
                 <span className="rounded-full border border-[#E5DED1] bg-white px-3 py-1.5 text-xs font-semibold text-[#62685E]">
                   {appointments.length}{" "}
                   {appointments.length ===
-                    1
+                  1
                     ? "agendamento"
                     : "agendamentos"}
                 </span>
@@ -1191,7 +1312,7 @@ export function AdminAgendaPageContent({
           {!isLoading &&
             !isError &&
             appointments.length ===
-            0 && (
+              0 && (
               <div className="p-5 sm:p-6">
                 <div className="flex min-h-[300px] items-center justify-center rounded-2xl border border-dashed border-[#D9D2C5] bg-[#FBF9F4] px-6 py-12 text-center">
                   <div className="max-w-md">
@@ -1214,7 +1335,7 @@ export function AdminAgendaPageContent({
           {!isLoading &&
             !isError &&
             appointments.length >
-            0 && (
+              0 && (
               <div className="divide-y divide-[#EAE4D8]">
                 {appointments.map(
                   (
@@ -1263,6 +1384,12 @@ export function AdminAgendaPageContent({
                     const variablePrice =
                       isVariablePriceAppointment(
                         appointment,
+                      );
+
+                    const formattedPhone =
+                      formatBrazilPhone(
+                        appointment
+                          .clientPhoneSnapshot,
                       );
 
                     return (
@@ -1350,12 +1477,15 @@ export function AdminAgendaPageContent({
                                   }
                                 </h3>
 
-                                <p className="mt-1 text-sm text-[#73776D]">
-                                  {
-                                    appointment
-                                      .clientPhoneSnapshot
-                                  }
-                                </p>
+                                <div className="mt-1.5 flex items-center gap-1.5 text-sm text-[#73776D]">
+                                  <Phone className="size-3.5 shrink-0 text-[#8A8E84]" />
+
+                                  <span className="whitespace-nowrap font-medium">
+                                    {
+                                      formattedPhone
+                                    }
+                                  </span>
+                                </div>
                               </div>
                             </div>
                           </div>

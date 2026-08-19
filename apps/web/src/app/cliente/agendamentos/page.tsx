@@ -14,6 +14,8 @@ import {
   CalendarDays,
   CalendarPlus,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   CircleX,
   Clock3,
   History,
@@ -26,6 +28,10 @@ import {
 import Link from "next/link";
 
 import {
+  useState,
+} from "react";
+
+import {
   useClientAppointments,
 } from "@/features/appointments/hooks/useClientAppointments";
 
@@ -35,6 +41,9 @@ import {
 
 const SALON_TIME_ZONE =
   "America/Sao_Paulo";
+
+const HISTORY_PREVIEW_LIMIT =
+  3;
 
 const dateFormatter =
   new Intl.DateTimeFormat(
@@ -140,7 +149,7 @@ function formatPrice(
   return currencyFormatter
     .format(
       priceCents /
-        100,
+      100,
     );
 }
 
@@ -149,7 +158,7 @@ function getStatusConfig(
     AppointmentStatus,
 ) {
   switch (
-    status
+  status
   ) {
     case APPOINTMENT_STATUS
       .PENDING_APPROVAL:
@@ -245,10 +254,10 @@ function getStatusConfig(
 
 type AppointmentCardProps = {
   appointment:
-    Appointment;
+  Appointment;
 
   fallbackPriceType?:
-    ServicePriceType;
+  ServicePriceType;
 };
 
 function AppointmentCard({
@@ -265,7 +274,7 @@ function AppointmentCard({
 
   const showRejectionReason =
     appointment.status ===
-      APPOINTMENT_STATUS.REJECTED &&
+    APPOINTMENT_STATUS.REJECTED &&
     Boolean(
       appointment
         .rejectionReason,
@@ -273,7 +282,7 @@ function AppointmentCard({
 
   const showCancellationReason =
     appointment.status ===
-      APPOINTMENT_STATUS.CANCELLED &&
+    APPOINTMENT_STATUS.CANCELLED &&
     Boolean(
       appointment
         .cancellationReason,
@@ -304,20 +313,24 @@ function AppointmentCard({
 
   const isStartingFrom =
     priceType ===
-      SERVICE_PRICE_TYPES
-        .STARTING_FROM &&
+    SERVICE_PRICE_TYPES
+      .STARTING_FROM &&
     !hasSpecialPrice;
 
   /*
-   * Quando futuramente o valor final
-   * for informado antes da conclusão,
-   * um COMPLETED passa a representar
-   * valor efetivamente fechado.
+   * Enquanto o atendimento ainda
+   * não foi concluído, mostramos
+   * "A partir de".
+   *
+   * Depois da conclusão,
+   * chargedPriceCents representa
+   * o valor final efetivamente
+   * cobrado.
    */
   const showStartingFrom =
     isStartingFrom &&
     appointment.status !==
-      APPOINTMENT_STATUS.COMPLETED;
+    APPOINTMENT_STATUS.COMPLETED;
 
   return (
     <article className="overflow-hidden rounded-3xl border border-[#E5E0D5] bg-white shadow-sm">
@@ -424,7 +437,7 @@ function AppointmentCard({
               {showStartingFrom
                 ? "Valor inicial"
                 : appointment.status ===
-                    APPOINTMENT_STATUS.COMPLETED
+                  APPOINTMENT_STATUS.COMPLETED
                   ? "Valor final"
                   : "Valor"}
             </p>
@@ -463,6 +476,14 @@ function AppointmentCard({
 }
 
 export default function ClientAppointmentsPage() {
+  const [
+    showAllHistory,
+    setShowAllHistory,
+  ] =
+    useState(
+      false,
+    );
+
   const {
     data,
     isLoading,
@@ -483,7 +504,7 @@ export default function ClientAppointmentsPage() {
    */
   const {
     data:
-      services = [],
+    services = [],
   } =
     useClientBookableServices();
 
@@ -494,6 +515,29 @@ export default function ClientAppointmentsPage() {
   const history =
     data?.history ??
     [];
+
+  /*
+   * Por padrão mostramos somente
+   * os três registros mais recentes.
+   *
+   * Isso evita que a tela da cliente
+   * fique enorme depois de vários
+   * atendimentos.
+   */
+  const visibleHistory =
+    showAllHistory
+      ? history
+      : history.slice(
+        0,
+        HISTORY_PREVIEW_LIMIT,
+      );
+
+  const hiddenHistoryCount =
+    Math.max(
+      history.length -
+      HISTORY_PREVIEW_LIMIT,
+      0,
+    );
 
   function getFallbackPriceType(
     appointment:
@@ -629,16 +673,12 @@ export default function ClientAppointmentsPage() {
 
                     <div className="flex-1">
                       <h3 className="font-semibold text-[#263620]">
-                        Nenhum
-                        agendamento
-                        próximo
+                        Nenhum agendamento próximo
                       </h3>
 
                       <p className="mt-1 text-sm leading-6 text-[#71776D]">
-                        Quando você
-                        solicitar um novo
-                        horário, ele
-                        aparecerá aqui.
+                        Quando você solicitar um novo
+                        horário, ele aparecerá aqui.
                       </p>
                     </div>
 
@@ -679,63 +719,127 @@ export default function ClientAppointmentsPage() {
 
             {/* HISTÓRICO */}
             <section>
-              <div className="mb-4">
-                <p className="text-sm font-medium text-[#7A8075]">
-                  Histórico
-                </p>
+              {/* CABEÇALHO DO HISTÓRICO */}
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <History className="size-4 text-[#7A8075]" />
 
-                <h2 className="mt-1 text-xl font-bold text-[#263620]">
-                  Agendamentos
-                  anteriores
-                </h2>
+                    <p className="text-sm font-medium text-[#7A8075]">
+                      Histórico
+                    </p>
+                  </div>
+
+                  <h2 className="mt-1 text-xl font-bold text-[#263620]">
+                    Histórico de agendamentos
+                  </h2>
+
+                  <p className="mt-1 max-w-xl text-sm leading-6 text-[#7A8075]">
+                    Consulte seus atendimentos
+                    concluídos, recusados ou
+                    cancelados.
+                  </p>
+                </div>
+
+                {history.length >
+                  0 && (
+                    <span className="inline-flex w-fit items-center justify-center rounded-full border border-[#E2DDD3] bg-[#FBFAF7] px-3 py-1.5 text-xs font-semibold text-[#62685E]">
+                      {history.length}{" "}
+                      {history.length ===
+                        1
+                        ? "registro"
+                        : "registros"}
+                    </span>
+                  )}
               </div>
 
+              {/* HISTÓRICO VAZIO */}
               {history.length ===
                 0 ? (
-                <div className="rounded-3xl border border-dashed border-[#D8D3C8] bg-white/60 p-6">
-                  <div className="flex items-center gap-4">
-                    <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-[#F2F0EA] text-[#7A8075]">
+                <div className="rounded-3xl border border-dashed border-[#D8D3C8] bg-[#FBFAF7] p-6 sm:p-7">
+                  <div className="flex flex-col items-center text-center sm:flex-row sm:text-left">
+                    <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-[#EEF1EA] text-[#607456]">
                       <History className="size-5" />
                     </div>
 
-                    <div>
-                      <h3 className="text-sm font-semibold text-[#394035]">
-                        Histórico
-                        vazio
+                    <div className="mt-4 sm:ml-4 sm:mt-0">
+                      <h3 className="font-semibold text-[#394035]">
+                        Você ainda não possui histórico
                       </h3>
 
-                      <p className="mt-1 text-sm text-[#7A8075]">
-                        Seus
-                        agendamentos
-                        concluídos,
-                        recusados ou
-                        cancelados
-                        aparecerão aqui.
+                      <p className="mt-1 max-w-lg text-sm leading-6 text-[#7A8075]">
+                        Depois que um agendamento
+                        for concluído, recusado ou
+                        cancelado, ele ficará
+                        disponível aqui para consulta.
                       </p>
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {history.map(
-                    (
-                      appointment,
-                    ) => (
-                      <AppointmentCard
-                        key={
-                          appointment.id
-                        }
-                        appointment={
-                          appointment
-                        }
-                        fallbackPriceType={
-                          getFallbackPriceType(
-                            appointment,
-                          )
-                        }
-                      />
-                    ),
-                  )}
+                <div className="overflow-hidden rounded-3xl border border-[#E5E0D5] bg-[#F9F8F4]">
+                  {/* REGISTROS */}
+                  <div className="space-y-4 p-3 sm:p-4">
+                    {visibleHistory.map(
+                      (
+                        appointment,
+                      ) => (
+                        <AppointmentCard
+                          key={
+                            appointment.id
+                          }
+                          appointment={
+                            appointment
+                          }
+                          fallbackPriceType={
+                            getFallbackPriceType(
+                              appointment,
+                            )
+                          }
+                        />
+                      ),
+                    )}
+                  </div>
+
+                  {/* VER MAIS */}
+                  {history.length >
+                    HISTORY_PREVIEW_LIMIT && (
+                      <div className="border-t border-[#E8E3D9] bg-white p-3">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setShowAllHistory(
+                              (
+                                current,
+                              ) =>
+                                !current,
+                            )
+                          }
+                          className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold text-[#304229] transition hover:bg-[#F4F6F1]"
+                        >
+                          {showAllHistory ? (
+                            <>
+                              <ChevronUp className="size-4" />
+
+                              Mostrar menos
+                            </>
+                          ) : (
+                            <>
+                              <ChevronDown className="size-4" />
+
+                              Ver mais{" "}
+                              {
+                                hiddenHistoryCount
+                              }{" "}
+                              {hiddenHistoryCount ===
+                                1
+                                ? "agendamento"
+                                : "agendamentos"}
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
                 </div>
               )}
             </section>
