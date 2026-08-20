@@ -23,6 +23,13 @@ import {
 } from "./appointment-booking.service.js";
 
 import {
+  ClientAppointmentCancellationNotAllowedError,
+  ClientAppointmentCancellationService,
+  ClientAppointmentCancellationTooLateError,
+  ClientAppointmentNotFoundError,
+} from "./client-appointment-cancellation.service.js";
+
+import {
   ClientAppointmentQueryService,
 } from "./client-appointment-query.service.js";
 
@@ -53,6 +60,9 @@ const clientServiceCatalogService =
 const clientAppointmentQueryService =
   new ClientAppointmentQueryService();
 
+const clientAppointmentCancellationService =
+  new ClientAppointmentCancellationService();
+
 /*
  * GET /api/v1/appointments/services
  *
@@ -63,8 +73,11 @@ const clientAppointmentQueryService =
  * eventual preço especial da cliente.
  */
 export async function listClientBookableServicesController(
-  request: FastifyRequest,
-  reply: FastifyReply,
+  request:
+    FastifyRequest,
+
+  reply:
+    FastifyReply,
 ) {
   const authUser =
     request.authUser;
@@ -74,7 +87,9 @@ export async function listClientBookableServicesController(
 
   if (!authUser) {
     return reply
-      .status(401)
+      .status(
+        401,
+      )
       .send({
         message:
           "Usuário não autenticado.",
@@ -83,7 +98,9 @@ export async function listClientBookableServicesController(
 
   if (!appUser) {
     return reply
-      .status(403)
+      .status(
+        403,
+      )
       .send({
         message:
           "Perfil do usuário não identificado.",
@@ -95,10 +112,15 @@ export async function listClientBookableServicesController(
 
   if (
     !salonId ||
-    salonId.trim().length === 0
+    salonId
+      .trim()
+      .length ===
+      0
   ) {
     return reply
-      .status(403)
+      .status(
+        403,
+      )
       .send({
         message:
           "Salão do usuário não identificado.",
@@ -138,13 +160,17 @@ export async function listClientBookableServicesController(
     return reply.send({
       services,
     });
-  } catch (error) {
+  } catch (
+    error
+  ) {
     if (
       error instanceof
       AppointmentClientNotFoundError
     ) {
       return reply
-        .status(409)
+        .status(
+          409,
+        )
         .send({
           message:
             error.message,
@@ -156,7 +182,9 @@ export async function listClientBookableServicesController(
       AppointmentClientInactiveError
     ) {
       return reply
-        .status(403)
+        .status(
+          403,
+        )
         .send({
           message:
             error.message,
@@ -176,8 +204,11 @@ export async function listClientBookableServicesController(
  * Não recebemos clientId pelo frontend.
  */
 export async function listClientAppointmentsController(
-  request: FastifyRequest,
-  reply: FastifyReply,
+  request:
+    FastifyRequest,
+
+  reply:
+    FastifyReply,
 ) {
   const authUser =
     request.authUser;
@@ -187,7 +218,9 @@ export async function listClientAppointmentsController(
 
   if (!authUser) {
     return reply
-      .status(401)
+      .status(
+        401,
+      )
       .send({
         message:
           "Usuário não autenticado.",
@@ -196,7 +229,9 @@ export async function listClientAppointmentsController(
 
   if (!appUser) {
     return reply
-      .status(403)
+      .status(
+        403,
+      )
       .send({
         message:
           "Perfil do usuário não identificado.",
@@ -208,10 +243,15 @@ export async function listClientAppointmentsController(
 
   if (
     !salonId ||
-    salonId.trim().length === 0
+    salonId
+      .trim()
+      .length ===
+      0
   ) {
     return reply
-      .status(403)
+      .status(
+        403,
+      )
       .send({
         message:
           "Salão do usuário não identificado.",
@@ -255,13 +295,17 @@ export async function listClientAppointmentsController(
       history:
         result.history,
     });
-  } catch (error) {
+  } catch (
+    error
+  ) {
     if (
       error instanceof
       AppointmentClientNotFoundError
     ) {
       return reply
-        .status(409)
+        .status(
+          409,
+        )
         .send({
           message:
             error.message,
@@ -273,10 +317,232 @@ export async function listClientAppointmentsController(
       AppointmentClientInactiveError
     ) {
       return reply
-        .status(403)
+        .status(
+          403,
+        )
         .send({
           message:
             error.message,
+        });
+    }
+
+    throw error;
+  }
+}
+
+/*
+ * PATCH /api/v1/appointments/mine/:appointmentId/cancel
+ *
+ * A CLIENT autenticada cancela
+ * exclusivamente um agendamento
+ * pertencente a ela.
+ *
+ * Regras:
+ *
+ * PENDING_APPROVAL
+ * → pode cancelar.
+ *
+ * CONFIRMED
+ * → pode cancelar somente quando
+ *   faltam MAIS de 24 horas.
+ *
+ * Outros status
+ * → cancelamento bloqueado.
+ */
+export async function cancelClientAppointmentController(
+  request:
+    FastifyRequest,
+
+  reply:
+    FastifyReply,
+) {
+  const authUser =
+    request.authUser;
+
+  const appUser =
+    request.appUser;
+
+  if (!authUser) {
+    return reply
+      .status(
+        401,
+      )
+      .send({
+        message:
+          "Usuário não autenticado.",
+      });
+  }
+
+  if (!appUser) {
+    return reply
+      .status(
+        403,
+      )
+      .send({
+        message:
+          "Perfil do usuário não identificado.",
+      });
+  }
+
+  const salonId =
+    appUser.salonId;
+
+  if (
+    !salonId ||
+    salonId
+      .trim()
+      .length ===
+      0
+  ) {
+    return reply
+      .status(
+        403,
+      )
+      .send({
+        message:
+          "Salão do usuário não identificado.",
+      });
+  }
+
+  const params =
+    request.params as {
+      appointmentId?:
+        string;
+    };
+
+  const appointmentId =
+    params
+      .appointmentId
+      ?.trim();
+
+  if (!appointmentId) {
+    return reply
+      .status(
+        400,
+      )
+      .send({
+        message:
+          "Agendamento não informado.",
+      });
+  }
+
+  try {
+    /*
+     * Assim como nos demais endpoints
+     * CLIENT, nunca confiamos em
+     * clientId vindo do frontend.
+     */
+    const client =
+      await clientResolverService
+        .resolve({
+          salonId,
+
+          userId:
+            authUser.uid,
+        });
+
+    const appointmentEntity =
+      await clientAppointmentCancellationService
+        .cancel({
+          salonId,
+
+          clientId:
+            client.id,
+
+          appointmentId,
+        });
+
+    const appointment =
+      mapAppointmentEntityToAppointment(
+        appointmentEntity,
+      );
+
+    return reply.send({
+      appointment,
+    });
+  } catch (
+    error
+  ) {
+    if (
+      error instanceof
+      AppointmentClientNotFoundError
+    ) {
+      return reply
+        .status(
+          409,
+        )
+        .send({
+          message:
+            error.message,
+        });
+    }
+
+    if (
+      error instanceof
+      AppointmentClientInactiveError
+    ) {
+      return reply
+        .status(
+          403,
+        )
+        .send({
+          message:
+            error.message,
+        });
+    }
+
+    /*
+     * O mesmo retorno é usado tanto
+     * quando o ID não existe quanto
+     * quando pertence a outra cliente.
+     *
+     * Isso evita exposição de dados.
+     */
+    if (
+      error instanceof
+      ClientAppointmentNotFoundError
+    ) {
+      return reply
+        .status(
+          404,
+        )
+        .send({
+          message:
+            error.message,
+        });
+    }
+
+    if (
+      error instanceof
+      ClientAppointmentCancellationTooLateError
+    ) {
+      return reply
+        .status(
+          409,
+        )
+        .send({
+          message:
+            error.message,
+
+          code:
+            "CLIENT_CANCELLATION_TOO_LATE",
+        });
+    }
+
+    if (
+      error instanceof
+      ClientAppointmentCancellationNotAllowedError
+    ) {
+      return reply
+        .status(
+          409,
+        )
+        .send({
+          message:
+            error.message,
+
+          code:
+            "CLIENT_CANCELLATION_NOT_ALLOWED",
         });
     }
 
@@ -291,15 +557,20 @@ export async function listClientAppointmentsController(
  * para determinado serviço e data.
  */
 export async function getAppointmentAvailabilityController(
-  request: FastifyRequest,
-  reply: FastifyReply,
+  request:
+    FastifyRequest,
+
+  reply:
+    FastifyReply,
 ) {
   const appUser =
     request.appUser;
 
   if (!appUser) {
     return reply
-      .status(403)
+      .status(
+        403,
+      )
       .send({
         message:
           "Perfil do usuário não identificado.",
@@ -311,10 +582,15 @@ export async function getAppointmentAvailabilityController(
 
   if (
     !salonId ||
-    salonId.trim().length === 0
+    salonId
+      .trim()
+      .length ===
+      0
   ) {
     return reply
-      .status(403)
+      .status(
+        403,
+      )
       .send({
         message:
           "Salão do usuário não identificado.",
@@ -322,19 +598,26 @@ export async function getAppointmentAvailabilityController(
   }
 
   const parsedQuery =
-    appointmentAvailabilityQuerySchema.safeParse(
-      request.query,
-    );
+    appointmentAvailabilityQuerySchema
+      .safeParse(
+        request.query,
+      );
 
-  if (!parsedQuery.success) {
+  if (
+    !parsedQuery.success
+  ) {
     return reply
-      .status(400)
+      .status(
+        400,
+      )
       .send({
         message:
           "Dados da consulta de disponibilidade inválidos.",
 
         issues:
-          parsedQuery.error.issues,
+          parsedQuery
+            .error
+            .issues,
       });
   }
 
@@ -345,23 +628,32 @@ export async function getAppointmentAvailabilityController(
           salonId,
 
           serviceId:
-            parsedQuery.data.serviceId,
+            parsedQuery
+              .data
+              .serviceId,
 
           dateKey:
-            parsedQuery.data.dateKey,
+            parsedQuery
+              .data
+              .dateKey,
         });
 
     return reply.send({
       availability,
     });
-  } catch (error) {
+  } catch (
+    error
+  ) {
     if (
-      error instanceof Error &&
+      error instanceof
+        Error &&
       error.message ===
         "Serviço não encontrado."
     ) {
       return reply
-        .status(404)
+        .status(
+          404,
+        )
         .send({
           message:
             error.message,
@@ -369,12 +661,15 @@ export async function getAppointmentAvailabilityController(
     }
 
     if (
-      error instanceof Error &&
+      error instanceof
+        Error &&
       error.message ===
         "Serviço indisponível para novos agendamentos."
     ) {
       return reply
-        .status(409)
+        .status(
+          409,
+        )
         .send({
           message:
             error.message,
@@ -382,7 +677,8 @@ export async function getAppointmentAvailabilityController(
     }
 
     if (
-      error instanceof Error &&
+      error instanceof
+        Error &&
       (
         error.message ===
           "Data inválida." ||
@@ -391,7 +687,9 @@ export async function getAppointmentAvailabilityController(
       )
     ) {
       return reply
-        .status(400)
+        .status(
+          400,
+        )
         .send({
           message:
             error.message,
@@ -409,8 +707,11 @@ export async function getAppointmentAvailabilityController(
  * um novo agendamento.
  */
 export async function createAppointmentController(
-  request: FastifyRequest,
-  reply: FastifyReply,
+  request:
+    FastifyRequest,
+
+  reply:
+    FastifyReply,
 ) {
   const authUser =
     request.authUser;
@@ -420,7 +721,9 @@ export async function createAppointmentController(
 
   if (!authUser) {
     return reply
-      .status(401)
+      .status(
+        401,
+      )
       .send({
         message:
           "Usuário não autenticado.",
@@ -429,7 +732,9 @@ export async function createAppointmentController(
 
   if (!appUser) {
     return reply
-      .status(403)
+      .status(
+        403,
+      )
       .send({
         message:
           "Perfil do usuário não identificado.",
@@ -441,10 +746,15 @@ export async function createAppointmentController(
 
   if (
     !salonId ||
-    salonId.trim().length === 0
+    salonId
+      .trim()
+      .length ===
+      0
   ) {
     return reply
-      .status(403)
+      .status(
+        403,
+      )
       .send({
         message:
           "Salão do usuário não identificado.",
@@ -452,19 +762,26 @@ export async function createAppointmentController(
   }
 
   const parsedBody =
-    createAppointmentSchema.safeParse(
-      request.body,
-    );
+    createAppointmentSchema
+      .safeParse(
+        request.body,
+      );
 
-  if (!parsedBody.success) {
+  if (
+    !parsedBody.success
+  ) {
     return reply
-      .status(400)
+      .status(
+        400,
+      )
       .send({
         message:
           "Dados do agendamento inválidos.",
 
         issues:
-          parsedBody.error.issues,
+          parsedBody
+            .error
+            .issues,
       });
   }
 
@@ -487,13 +804,19 @@ export async function createAppointmentController(
             client.id,
 
           serviceId:
-            parsedBody.data.serviceId,
+            parsedBody
+              .data
+              .serviceId,
 
           dateKey:
-            parsedBody.data.dateKey,
+            parsedBody
+              .data
+              .dateKey,
 
           startTime:
-            parsedBody.data.startTime,
+            parsedBody
+              .data
+              .startTime,
         });
 
     const appointment =
@@ -502,17 +825,23 @@ export async function createAppointmentController(
       );
 
     return reply
-      .status(201)
+      .status(
+        201,
+      )
       .send({
         appointment,
       });
-  } catch (error) {
+  } catch (
+    error
+  ) {
     if (
       error instanceof
       AppointmentClientNotFoundError
     ) {
       return reply
-        .status(409)
+        .status(
+          409,
+        )
         .send({
           message:
             error.message,
@@ -524,7 +853,9 @@ export async function createAppointmentController(
       AppointmentClientInactiveError
     ) {
       return reply
-        .status(403)
+        .status(
+          403,
+        )
         .send({
           message:
             error.message,
@@ -536,7 +867,9 @@ export async function createAppointmentController(
       AppointmentSlotUnavailableError
     ) {
       return reply
-        .status(409)
+        .status(
+          409,
+        )
         .send({
           message:
             error.message,
@@ -544,12 +877,15 @@ export async function createAppointmentController(
     }
 
     if (
-      error instanceof Error &&
+      error instanceof
+        Error &&
       error.message ===
         "Serviço não encontrado."
     ) {
       return reply
-        .status(404)
+        .status(
+          404,
+        )
         .send({
           message:
             error.message,
@@ -557,7 +893,8 @@ export async function createAppointmentController(
     }
 
     if (
-      error instanceof Error &&
+      error instanceof
+        Error &&
       (
         error.message ===
           "Serviço indisponível." ||
@@ -566,7 +903,9 @@ export async function createAppointmentController(
       )
     ) {
       return reply
-        .status(409)
+        .status(
+          409,
+        )
         .send({
           message:
             error.message,
@@ -574,12 +913,15 @@ export async function createAppointmentController(
     }
 
     if (
-      error instanceof Error &&
+      error instanceof
+        Error &&
       error.message ===
         "Não é possível agendar um horário no passado."
     ) {
       return reply
-        .status(400)
+        .status(
+          400,
+        )
         .send({
           message:
             error.message,
@@ -587,12 +929,15 @@ export async function createAppointmentController(
     }
 
     if (
-      error instanceof Error &&
+      error instanceof
+        Error &&
       error.message ===
         "O horário selecionado não está mais disponível."
     ) {
       return reply
-        .status(409)
+        .status(
+          409,
+        )
         .send({
           message:
             error.message,

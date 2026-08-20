@@ -95,6 +95,40 @@ export type RejectAdminAppointmentInput =
 
 /*
  * =================================
+ * CANCELAR AGENDAMENTO
+ * =================================
+ *
+ * O ADMIN precisa obrigatoriamente
+ * informar o motivo.
+ *
+ * Estados permitidos:
+ *
+ * PENDING_APPROVAL
+ * CONFIRMED
+ */
+export const cancelAdminAppointmentSchema =
+  z.object({
+    cancellationReason:
+      z
+        .string()
+        .trim()
+        .min(
+          3,
+          "Informe um motivo para o cancelamento.",
+        )
+        .max(
+          500,
+          "O motivo do cancelamento deve possuir no máximo 500 caracteres.",
+        ),
+  });
+
+export type CancelAdminAppointmentInput =
+  z.infer<
+    typeof cancelAdminAppointmentSchema
+  >;
+
+/*
+ * =================================
  * CONCLUIR ATENDIMENTO
  * =================================
  *

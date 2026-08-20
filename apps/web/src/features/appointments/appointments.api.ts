@@ -9,12 +9,24 @@ import {
 
 /*
  * ==============================
+ * TIPOS COMPARTILHADOS DA API
+ * ==============================
+ */
+
+type AppointmentResponse = {
+  appointment:
+    Appointment;
+};
+
+/*
+ * ==============================
  * CLIENT — SERVIÇOS
  * ==============================
  */
 
 type ClientBookableServicesResponse = {
-  services: ClientBookableService[];
+  services:
+    ClientBookableService[];
 };
 
 export async function getClientBookableServices():
@@ -53,23 +65,52 @@ export async function getClientAppointments():
 
 /*
  * ==============================
+ * CLIENT — CANCELAR AGENDAMENTO
+ * ==============================
+ */
+
+export async function cancelClientAppointment(
+  appointmentId:
+    string,
+): Promise<Appointment> {
+  const response =
+    await apiFetch<AppointmentResponse>(
+      `/appointments/mine/${appointmentId}/cancel`,
+      {
+        method:
+          "PATCH",
+      },
+    );
+
+  return response.appointment;
+}
+
+/*
+ * ==============================
  * CLIENT — DISPONIBILIDADE
  * ==============================
  */
 
 export type AppointmentAvailabilitySlot = {
-  startTime: string;
-  endTime: string;
+  startTime:
+    string;
+
+  endTime:
+    string;
 };
 
 export type AppointmentAvailability = {
-  serviceId: string;
+  serviceId:
+    string;
 
-  serviceName: string;
+  serviceName:
+    string;
 
-  dateKey: string;
+  dateKey:
+    string;
 
-  durationMinutes: number;
+  durationMinutes:
+    number;
 
   slots:
     AppointmentAvailabilitySlot[];
@@ -81,9 +122,11 @@ type AppointmentAvailabilityResponse = {
 };
 
 export type GetAppointmentAvailabilityInput = {
-  serviceId: string;
+  serviceId:
+    string;
 
-  dateKey: string;
+  dateKey:
+    string;
 };
 
 export async function getAppointmentAvailability(
@@ -114,15 +157,14 @@ export async function getAppointmentAvailability(
  */
 
 export type CreateAppointmentInput = {
-  serviceId: string;
+  serviceId:
+    string;
 
-  dateKey: string;
+  dateKey:
+    string;
 
-  startTime: string;
-};
-
-type AppointmentResponse = {
-  appointment: Appointment;
+  startTime:
+    string;
 };
 
 export async function createAppointment(
@@ -153,7 +195,8 @@ export async function createAppointment(
  */
 
 type AdminAppointmentsResponse = {
-  dateKey: string;
+  dateKey:
+    string;
 
   appointments:
     Appointment[];
@@ -206,21 +249,6 @@ export async function confirmAppointment(
  * ==============================
  * ADMIN — RECUSAR
  * ==============================
- *
- * blockSlot = false
- * ↓
- * recusa e libera o horário.
- *
- * blockSlot = true
- * ↓
- * recusa e cria bloqueio
- * administrativo.
- *
- * O campo permanece opcional
- * temporariamente para manter
- * compatibilidade com o modal
- * enquanto fazemos a alteração
- * visual no próximo passo.
  */
 
 export type RejectAppointmentInput = {
@@ -250,20 +278,55 @@ export async function rejectAppointment(
             rejectionReason:
               input.rejectionReason,
 
-            /*
-             * Enquanto alguma tela antiga
-             * não enviar blockSlot,
-             * assumimos false.
-             *
-             * Portanto:
-             *
-             * recusar por padrão
-             * continua liberando
-             * o horário.
-             */
             blockSlot:
               input.blockSlot ??
               false,
+          }),
+      },
+    );
+
+  return response.appointment;
+}
+
+/*
+ * ==============================
+ * ADMIN — CANCELAR
+ * ==============================
+ *
+ * PENDING_APPROVAL
+ * ou
+ * CONFIRMED
+ *
+ * ↓
+ *
+ * CANCELLED
+ *
+ * O motivo é obrigatório.
+ */
+
+export type CancelAdminAppointmentInput = {
+  appointmentId:
+    string;
+
+  cancellationReason:
+    string;
+};
+
+export async function cancelAdminAppointment(
+  input:
+    CancelAdminAppointmentInput,
+): Promise<Appointment> {
+  const response =
+    await apiFetch<AppointmentResponse>(
+      `/admin/appointments/${input.appointmentId}/cancel`,
+      {
+        method:
+          "PATCH",
+
+        body:
+          JSON.stringify({
+            cancellationReason:
+              input.cancellationReason,
           }),
       },
     );
@@ -297,19 +360,6 @@ export async function startAppointment(
  * ==============================
  * ADMIN — CONCLUIR
  * ==============================
- *
- * FIXED:
- *
- * {
- *   appointmentId
- * }
- *
- * STARTING_FROM:
- *
- * {
- *   appointmentId,
- *   finalPriceCents: 65000
- * }
  */
 
 export type CompleteAppointmentInput = {

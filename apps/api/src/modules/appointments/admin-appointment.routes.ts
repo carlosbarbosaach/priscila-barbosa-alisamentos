@@ -15,6 +15,7 @@ import {
 } from "../../shared/middleware/require-role.middleware.js";
 
 import {
+  cancelAdminAppointmentController,
   completeAdminAppointmentController,
   confirmAdminAppointmentController,
   listAdminAppointmentsController,
@@ -48,10 +49,12 @@ export const adminAppointmentRoutes:
      */
     app.get(
       "/",
+
       {
         preHandler:
           adminOnly,
       },
+
       listAdminAppointmentsController,
     );
 
@@ -62,10 +65,12 @@ export const adminAppointmentRoutes:
      */
     app.get(
       "/blockouts",
+
       {
         preHandler:
           adminOnly,
       },
+
       listAdminScheduleBlockoutsController,
     );
 
@@ -76,10 +81,12 @@ export const adminAppointmentRoutes:
      */
     app.post(
       "/blockouts",
+
       {
         preHandler:
           adminOnly,
       },
+
       createAdminScheduleBlockoutController,
     );
 
@@ -90,10 +97,12 @@ export const adminAppointmentRoutes:
      */
     app.delete(
       "/blockouts",
+
       {
         preHandler:
           adminOnly,
       },
+
       releaseAdminScheduleBlockoutController,
     );
 
@@ -104,10 +113,12 @@ export const adminAppointmentRoutes:
      */
     app.patch(
       "/:appointmentId/confirm",
+
       {
         preHandler:
           adminOnly,
       },
+
       confirmAdminAppointmentController,
     );
 
@@ -118,11 +129,36 @@ export const adminAppointmentRoutes:
      */
     app.patch(
       "/:appointmentId/reject",
+
       {
         preHandler:
           adminOnly,
       },
+
       rejectAdminAppointmentController,
+    );
+
+    /*
+     * =================================
+     * CANCELAR
+     * =================================
+     *
+     * PENDING_APPROVAL
+     * CONFIRMED
+     *
+     * ↓
+     *
+     * CANCELLED
+     */
+    app.patch(
+      "/:appointmentId/cancel",
+
+      {
+        preHandler:
+          adminOnly,
+      },
+
+      cancelAdminAppointmentController,
     );
 
     /*
@@ -132,10 +168,12 @@ export const adminAppointmentRoutes:
      */
     app.patch(
       "/:appointmentId/start",
+
       {
         preHandler:
           adminOnly,
       },
+
       startAdminAppointmentController,
     );
 
@@ -146,10 +184,12 @@ export const adminAppointmentRoutes:
      */
     app.patch(
       "/:appointmentId/complete",
+
       {
         preHandler:
           adminOnly,
       },
+
       completeAdminAppointmentController,
     );
   };

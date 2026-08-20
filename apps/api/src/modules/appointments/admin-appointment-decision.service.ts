@@ -1,4 +1,5 @@
 import {
+  APPOINTMENT_CANCELLED_BY,
   APPOINTMENT_PRICE_SOURCE,
   APPOINTMENT_STATUS,
   SERVICE_PRICE_TYPES,
@@ -101,9 +102,6 @@ export class AdminAppointmentFinalPriceRequiredError
 
 /*
  * Proteção adicional no domínio.
- *
- * Mesmo existindo Zod no Controller,
- * não confiamos apenas na camada HTTP.
  */
 export class AdminAppointmentInvalidFinalPriceError
   extends Error {
@@ -134,6 +132,24 @@ export class AdminAppointmentFinalPriceBelowBaseError
   }
 }
 
+/*
+ * Motivo de cancelamento inválido.
+ */
+export class AdminAppointmentInvalidCancellationReasonError
+  extends Error {
+  constructor(
+    message:
+      string,
+  ) {
+    super(
+      message,
+    );
+
+    this.name =
+      "AdminAppointmentInvalidCancellationReasonError";
+  }
+}
+
 type AppointmentIdentificationInput = {
   salonId:
     string;
@@ -147,38 +163,18 @@ type RejectAppointmentInput =
     rejectionReason:
       string;
 
-    /*
-     * false / undefined:
-     *
-     * o Appointment será recusado
-     * e o horário volta a ficar
-     * disponível.
-     *
-     * true:
-     *
-     * o Appointment será recusado
-     * e será criado um bloqueio
-     * administrativo separado.
-     *
-     * É opcional temporariamente para
-     * manter compatibilidade com o
-     * Controller/frontend atual.
-     */
     blockSlot?:
       boolean;
   };
 
+type CancelAppointmentInput =
+  AppointmentIdentificationInput & {
+    cancellationReason:
+      string;
+  };
+
 type CompleteAppointmentInput =
   AppointmentIdentificationInput & {
-    /*
-     * Valor final em centavos.
-     *
-     * Exemplo:
-     *
-     * R$ 650,00
-     * ↓
-     * 65000
-     */
     finalPriceCents?:
       number;
   };
@@ -207,9 +203,7 @@ export class AdminAppointmentDecisionService {
   async confirm(
     input:
       AppointmentIdentificationInput,
-  ): Promise<
-    AppointmentEntity
-  > {
+  ): Promise<AppointmentEntity> {
     const preliminaryAppointment =
       await this
         .getPreliminaryAppointment(
@@ -236,9 +230,7 @@ export class AdminAppointmentDecisionService {
               .appointmentRepository
               .findByIdInTransaction(
                 transaction,
-
                 input.salonId,
-
                 input.appointmentId,
               );
 
@@ -262,9 +254,7 @@ export class AdminAppointmentDecisionService {
             .appointmentRepository
             .updateInTransaction(
               transaction,
-
               appointment.id,
-
               {
                 status:
                   APPOINTMENT_STATUS
@@ -303,22 +293,11 @@ export class AdminAppointmentDecisionService {
    * PENDING_APPROVAL
    * ↓
    * REJECTED
-   *
-   * blockSlot = false
-   * ↓
-   * horário fica disponível.
-   *
-   * blockSlot = true
-   * ↓
-   * cria ScheduleBlockout
-   * para data + horário.
    */
   async reject(
     input:
       RejectAppointmentInput,
-  ): Promise<
-    AppointmentEntity
-  > {
+  ): Promise<AppointmentEntity> {
     const rejectionReason =
       input
         .rejectionReason
@@ -342,13 +321,6 @@ export class AdminAppointmentDecisionService {
       );
     }
 
-    /*
-     * Enquanto o frontend ainda não
-     * envia blockSlot, o comportamento
-     * continua exatamente como antes:
-     *
-     * recusar = liberar horário.
-     */
     const blockSlot =
       input.blockSlot ??
       false;
@@ -374,19 +346,12 @@ export class AdminAppointmentDecisionService {
         async (
           transaction,
         ) => {
-          /*
-           * =================================
-           * 1. APPOINTMENT
-           * =================================
-           */
           const appointment =
             await this
               .appointmentRepository
               .findByIdInTransaction(
                 transaction,
-
                 input.salonId,
-
                 input.appointmentId,
               );
 
@@ -403,14 +368,6 @@ export class AdminAppointmentDecisionService {
             appointment,
           );
 
-          /*
-           * O horário administrativo é
-           * calculado pelo BACKEND usando
-           * startsAt.
-           *
-           * Não confiamos em startTime
-           * enviado pelo frontend.
-           */
           const appointmentStartTime =
             this.dateToLocalTime(
               appointment
@@ -418,33 +375,14 @@ export class AdminAppointmentDecisionService {
                 .toDate(),
             );
 
-          /*
-           * =================================
-           * 2. BLOQUEIO EXISTENTE
-           * =================================
-           *
-           * IMPORTANTE:
-           *
-           * Todas as leituras da Transaction
-           * acontecem antes das gravações.
-           *
-           * Só precisamos consultar um
-           * ScheduleBlockout se o ADMIN
-           * realmente escolheu bloquear
-           * aquele horário.
-           */
           const existingBlockout =
             blockSlot
               ? await this
                   .scheduleBlockoutRepository
                   .findBySlotInTransaction(
                     transaction,
-
                     input.salonId,
-
-                    appointment
-                      .dateKey,
-
+                    appointment.dateKey,
                     appointmentStartTime,
                   )
               : null;
@@ -452,24 +390,11 @@ export class AdminAppointmentDecisionService {
           const now =
             Timestamp.now();
 
-          /*
-           * =================================
-           * 3. RECUSA
-           * =================================
-           *
-           * O Appointment sempre vira
-           * REJECTED.
-           *
-           * REJECTED por si só NÃO
-           * bloqueia mais o horário.
-           */
           this
             .appointmentRepository
             .updateInTransaction(
               transaction,
-
               appointment.id,
-
               {
                 status:
                   APPOINTMENT_STATUS
@@ -482,23 +407,6 @@ export class AdminAppointmentDecisionService {
               },
             );
 
-          /*
-           * =================================
-           * 4. BLOQUEIO ADMINISTRATIVO
-           * =================================
-           *
-           * Somente quando:
-           *
-           * blockSlot === true
-           *
-           * e ainda não existir bloqueio
-           * para exatamente aquela data
-           * e horário.
-           *
-           * Utilizamos o motivo da recusa
-           * também como motivo inicial do
-           * bloqueio administrativo.
-           */
           if (
             blockSlot &&
             !existingBlockout
@@ -507,7 +415,6 @@ export class AdminAppointmentDecisionService {
               .scheduleBlockoutRepository
               .createInTransaction(
                 transaction,
-
                 {
                   salonId:
                     input.salonId,
@@ -531,15 +438,6 @@ export class AdminAppointmentDecisionService {
               );
           }
 
-          /*
-           * Para a resposta desta operação
-           * continuamos retornando somente
-           * o Appointment.
-           *
-           * O ScheduleBlockout é uma
-           * informação administrativa
-           * separada.
-           */
           return {
             ...appointment,
 
@@ -558,19 +456,50 @@ export class AdminAppointmentDecisionService {
 
   /*
    * =================================
-   * INICIAR ATENDIMENTO
+   * CANCELAR PELO ADMIN
    * =================================
    *
+   * Estados permitidos:
+   *
+   * PENDING_APPROVAL
    * CONFIRMED
+   *
    * ↓
-   * IN_PROGRESS
+   *
+   * CANCELLED
+   *
+   * Não existe regra de 24 horas
+   * para o ADMIN.
+   *
+   * O motivo é obrigatório.
    */
-  async start(
+  async cancel(
     input:
-      AppointmentIdentificationInput,
-  ): Promise<
-    AppointmentEntity
-  > {
+      CancelAppointmentInput,
+  ): Promise<AppointmentEntity> {
+    const cancellationReason =
+      input
+        .cancellationReason
+        .trim();
+
+    if (
+      cancellationReason.length <
+      3
+    ) {
+      throw new AdminAppointmentInvalidCancellationReasonError(
+        "Informe um motivo para o cancelamento.",
+      );
+    }
+
+    if (
+      cancellationReason.length >
+      500
+    ) {
+      throw new AdminAppointmentInvalidCancellationReasonError(
+        "O motivo do cancelamento deve possuir no máximo 500 caracteres.",
+      );
+    }
+
     const preliminaryAppointment =
       await this
         .getPreliminaryAppointment(
@@ -597,9 +526,122 @@ export class AdminAppointmentDecisionService {
               .appointmentRepository
               .findByIdInTransaction(
                 transaction,
-
                 input.salonId,
+                input.appointmentId,
+              );
 
+          if (!appointment) {
+            throw new AdminAppointmentNotFoundError();
+          }
+
+          this.ensureSameDateKey(
+            preliminaryAppointment,
+            appointment,
+          );
+
+          /*
+           * Somente:
+           *
+           * PENDING_APPROVAL
+           * CONFIRMED
+           *
+           * podem ser cancelados
+           * administrativamente.
+           */
+          this.ensureAdminCancellable(
+            appointment,
+          );
+
+          const now =
+            Timestamp.now();
+
+          this
+            .appointmentRepository
+            .updateInTransaction(
+              transaction,
+              appointment.id,
+              {
+                status:
+                  APPOINTMENT_STATUS
+                    .CANCELLED,
+
+                cancelledBy:
+                  APPOINTMENT_CANCELLED_BY
+                    .ADMIN,
+
+                cancelledAt:
+                  now,
+
+                cancellationReason,
+
+                updatedAt:
+                  now,
+              },
+            );
+
+          return {
+            ...appointment,
+
+            status:
+              APPOINTMENT_STATUS
+                .CANCELLED,
+
+            cancelledBy:
+              APPOINTMENT_CANCELLED_BY
+                .ADMIN,
+
+            cancelledAt:
+              now,
+
+            cancellationReason,
+
+            updatedAt:
+              now,
+          };
+        },
+      );
+  }
+
+  /*
+   * =================================
+   * INICIAR ATENDIMENTO
+   * =================================
+   *
+   * CONFIRMED
+   * ↓
+   * IN_PROGRESS
+   */
+  async start(
+    input:
+      AppointmentIdentificationInput,
+  ): Promise<AppointmentEntity> {
+    const preliminaryAppointment =
+      await this
+        .getPreliminaryAppointment(
+          input,
+        );
+
+    return this
+      .dayTransactionService
+      .run(
+        {
+          salonId:
+            input.salonId,
+
+          dateKey:
+            preliminaryAppointment
+              .dateKey,
+        },
+
+        async (
+          transaction,
+        ) => {
+          const appointment =
+            await this
+              .appointmentRepository
+              .findByIdInTransaction(
+                transaction,
+                input.salonId,
                 input.appointmentId,
               );
 
@@ -623,9 +665,7 @@ export class AdminAppointmentDecisionService {
             .appointmentRepository
             .updateInTransaction(
               transaction,
-
               appointment.id,
-
               {
                 status:
                   APPOINTMENT_STATUS
@@ -658,22 +698,11 @@ export class AdminAppointmentDecisionService {
    * IN_PROGRESS
    * ↓
    * COMPLETED
-   *
-   * FIXED:
-   * mantém chargedPriceCents.
-   *
-   * CLIENT_SPECIAL:
-   * mantém chargedPriceCents.
-   *
-   * STARTING_FROM + SERVICE_DEFAULT:
-   * exige finalPriceCents.
    */
   async complete(
     input:
       CompleteAppointmentInput,
-  ): Promise<
-    AppointmentEntity
-  > {
+  ): Promise<AppointmentEntity> {
     const preliminaryAppointment =
       await this
         .getPreliminaryAppointment(
@@ -700,9 +729,7 @@ export class AdminAppointmentDecisionService {
               .appointmentRepository
               .findByIdInTransaction(
                 transaction,
-
                 input.salonId,
-
                 input.appointmentId,
               );
 
@@ -715,11 +742,6 @@ export class AdminAppointmentDecisionService {
             appointment,
           );
 
-          /*
-           * Só é possível concluir
-           * atendimento que realmente
-           * esteja em andamento.
-           */
           this.ensureInProgress(
             appointment,
           );
@@ -748,13 +770,11 @@ export class AdminAppointmentDecisionService {
             undefined;
 
           /*
-           * Novo agendamento:
+           * STARTING_FROM com preço normal
+           * ou promocional precisa receber
+           * o valor final.
            *
-           * sabemos com certeza que
-           * o serviço era STARTING_FROM.
-           *
-           * Se não existir preço especial,
-           * exigimos o valor final.
+           * CLIENT_SPECIAL é a exceção.
            */
           const requiresFinalPrice =
             !usesClientSpecialPrice &&
@@ -768,16 +788,6 @@ export class AdminAppointmentDecisionService {
             throw new AdminAppointmentFinalPriceRequiredError();
           }
 
-          /*
-           * Agendamento antigo:
-           *
-           * não possui snapshot do tipo
-           * de preço.
-           *
-           * Se o frontend enviar
-           * finalPriceCents, aceitamos
-           * como compatibilidade.
-           */
           const canApplyLegacyFinalPrice =
             !usesClientSpecialPrice &&
             hasLegacyPriceType &&
@@ -811,11 +821,6 @@ export class AdminAppointmentDecisionService {
               throw new AdminAppointmentInvalidFinalPriceError();
             }
 
-            /*
-             * "A partir de R$ 500"
-             * não deve terminar em,
-             * por exemplo, R$ 450.
-             */
             if (
               finalPriceCents <
               appointment
@@ -835,9 +840,7 @@ export class AdminAppointmentDecisionService {
             .appointmentRepository
             .updateInTransaction(
               transaction,
-
               appointment.id,
-
               {
                 status:
                   APPOINTMENT_STATUS
@@ -870,16 +873,11 @@ export class AdminAppointmentDecisionService {
    * =================================
    * LEITURA PRELIMINAR
    * =================================
-   *
-   * Descobre dateKey antes
-   * de abrir o lock do dia.
    */
   private async getPreliminaryAppointment(
     input:
       AppointmentIdentificationInput,
-  ): Promise<
-    AppointmentEntity
-  > {
+  ): Promise<AppointmentEntity> {
     if (
       !input.salonId ||
       input
@@ -911,7 +909,6 @@ export class AdminAppointmentDecisionService {
         .appointmentRepository
         .findById(
           input.salonId,
-
           input.appointmentId,
         );
 
@@ -926,19 +923,6 @@ export class AdminAppointmentDecisionService {
    * =================================
    * DATA/HORÁRIO LOCAL
    * =================================
-   *
-   * Firestore Timestamp
-   * ↓
-   * Date
-   * ↓
-   * horário do salão
-   *
-   * Exemplo:
-   *
-   * 13:00
-   *
-   * Utilizamos sempre o startsAt
-   * salvo no Appointment.
    */
   private dateToLocalTime(
     date:
@@ -1044,6 +1028,30 @@ export class AdminAppointmentDecisionService {
       APPOINTMENT_STATUS
         .IN_PROGRESS
     ) {
+      throw new AdminAppointmentInvalidStatusError(
+        appointment.status,
+      );
+    }
+  }
+
+  /*
+   * ADMIN pode cancelar somente
+   * solicitações pendentes ou
+   * agendamentos confirmados.
+   */
+  private ensureAdminCancellable(
+    appointment:
+      AppointmentEntity,
+  ): void {
+    const canCancel =
+      appointment.status ===
+        APPOINTMENT_STATUS
+          .PENDING_APPROVAL ||
+      appointment.status ===
+        APPOINTMENT_STATUS
+          .CONFIRMED;
+
+    if (!canCancel) {
       throw new AdminAppointmentInvalidStatusError(
         appointment.status,
       );

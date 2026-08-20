@@ -30,16 +30,47 @@ import {
 } from "react";
 
 import {
+  AppointmentPromotionBadge,
+} from "@/features/appointments/components/AppointmentPromotionBadge";
+
+import {
+  CancelClientAppointmentDialog,
+} from "@/features/appointments/components/CancelClientAppointmentDialog";
+
+import {
+  useCancelClientAppointment,
+} from "@/features/appointments/hooks/useCancelClientAppointment";
+
+import {
   useClientAppointments,
 } from "@/features/appointments/hooks/useClientAppointments";
 
 import {
   useClientBookableServices,
 } from "@/features/appointments/hooks/useClientBookableServices";
-import { AppointmentPromotionBadge } from "@/features/appointments/components/AppointmentPromotionBadge";
 
 const SALON_TIME_ZONE =
   "America/Sao_Paulo";
+
+/*
+ * =================================
+ * CANCELAMENTO
+ * =================================
+ *
+ * Esta regra no frontend existe
+ * somente para UX.
+ *
+ * A validação definitiva continua
+ * obrigatoriamente no backend.
+ */
+const CLIENT_CANCELLATION_LIMIT_HOURS =
+  24;
+
+const CLIENT_CANCELLATION_LIMIT_MS =
+  CLIENT_CANCELLATION_LIMIT_HOURS *
+  60 *
+  60 *
+  1000;
 
 type AppointmentFilter =
   | "ALL"
@@ -48,6 +79,17 @@ type AppointmentFilter =
   | "REJECTED"
   | "COMPLETED"
   | "CANCELLED";
+
+type ClientCancellationState = {
+  canCancel:
+    boolean;
+
+  actionLabel:
+    string | null;
+
+  notice:
+    string | null;
+};
 
 const dateFormatter =
   new Intl.DateTimeFormat(
@@ -150,8 +192,123 @@ function formatPrice(
 ) {
   return currencyFormatter.format(
     priceCents /
-    100,
+      100,
   );
+}
+
+/*
+ * =================================
+ * REGRA VISUAL DE CANCELAMENTO
+ * =================================
+ *
+ * PENDING_APPROVAL
+ * → sempre pode cancelar.
+ *
+ * CONFIRMED
+ * → somente com MAIS de 24h.
+ *
+ * Outros status
+ * → sem ação.
+ */
+function getClientCancellationState(
+  appointment:
+    Appointment,
+): ClientCancellationState {
+  if (
+    appointment.status ===
+    APPOINTMENT_STATUS
+      .PENDING_APPROVAL
+  ) {
+    return {
+      canCancel:
+        true,
+
+      actionLabel:
+        "Cancelar solicitação",
+
+      notice:
+        null,
+    };
+  }
+
+  if (
+    appointment.status !==
+    APPOINTMENT_STATUS
+      .CONFIRMED
+  ) {
+    return {
+      canCancel:
+        false,
+
+      actionLabel:
+        null,
+
+      notice:
+        null,
+    };
+  }
+
+  const startsAt =
+    new Date(
+      appointment.startsAt,
+    );
+
+  /*
+   * Se a data estiver inválida,
+   * preferimos bloquear a ação
+   * no frontend.
+   *
+   * Nunca liberamos um cancelamento
+   * quando não conseguimos validar
+   * a antecedência.
+   */
+  if (
+    Number.isNaN(
+      startsAt.getTime(),
+    )
+  ) {
+    return {
+      canCancel:
+        false,
+
+      actionLabel:
+        null,
+
+      notice:
+        "Não foi possível verificar o prazo de cancelamento deste agendamento.",
+    };
+  }
+
+  const millisecondsUntilAppointment =
+    startsAt.getTime() -
+    Date.now();
+
+  if (
+    millisecondsUntilAppointment >
+    CLIENT_CANCELLATION_LIMIT_MS
+  ) {
+    return {
+      canCancel:
+        true,
+
+      actionLabel:
+        "Cancelar agendamento",
+
+      notice:
+        null,
+    };
+  }
+
+  return {
+    canCancel:
+      false,
+
+    actionLabel:
+      null,
+
+    notice:
+      "Como faltam 24 horas ou menos para o atendimento, o cancelamento pelo sistema não está mais disponível. Entre em contato diretamente com o salão.",
+  };
 }
 
 function getStatusConfig(
@@ -159,7 +316,7 @@ function getStatusConfig(
     AppointmentStatus,
 ) {
   switch (
-  status
+    status
   ) {
     case APPOINTMENT_STATUS
       .PENDING_APPROVAL:
@@ -318,19 +475,35 @@ function getStatusConfig(
 
 type AppointmentCardProps = {
   appointment:
-  Appointment;
+    Appointment;
 
   fallbackPriceType?:
-  ServicePriceType;
+    ServicePriceType;
+
+  onRequestCancel:
+    (
+      appointment:
+        Appointment,
+    ) => void;
+
+  cancellationPending:
+    boolean;
 };
 
 function AppointmentCard({
   appointment,
   fallbackPriceType,
+  onRequestCancel,
+  cancellationPending,
 }: AppointmentCardProps) {
   const status =
     getStatusConfig(
       appointment.status,
+    );
+
+  const cancellationState =
+    getClientCancellationState(
+      appointment,
     );
 
   const StatusIcon =
@@ -338,7 +511,8 @@ function AppointmentCard({
 
   const showRejectionReason =
     appointment.status ===
-    APPOINTMENT_STATUS.REJECTED &&
+      APPOINTMENT_STATUS
+        .REJECTED &&
     Boolean(
       appointment
         .rejectionReason,
@@ -346,7 +520,8 @@ function AppointmentCard({
 
   const showCancellationReason =
     appointment.status ===
-    APPOINTMENT_STATUS.CANCELLED &&
+      APPOINTMENT_STATUS
+        .CANCELLED &&
     Boolean(
       appointment
         .cancellationReason,
@@ -367,15 +542,15 @@ function AppointmentCard({
 
   const isStartingFrom =
     priceType ===
-    SERVICE_PRICE_TYPES
-      .STARTING_FROM &&
+      SERVICE_PRICE_TYPES
+        .STARTING_FROM &&
     !hasSpecialPrice;
 
   const showStartingFrom =
     isStartingFrom &&
     appointment.status !==
-    APPOINTMENT_STATUS
-      .COMPLETED;
+      APPOINTMENT_STATUS
+        .COMPLETED;
 
   return (
     <article className="overflow-hidden rounded-2xl border border-[#E5E0D5] bg-white shadow-sm sm:rounded-3xl">
@@ -550,8 +725,8 @@ function AppointmentCard({
               {showStartingFrom
                 ? "Valor inicial"
                 : appointment.status ===
-                  APPOINTMENT_STATUS
-                    .COMPLETED
+                    APPOINTMENT_STATUS
+                      .COMPLETED
                   ? "Valor final"
                   : "Valor"}
             </p>
@@ -568,6 +743,7 @@ function AppointmentCard({
                   .chargedPriceCents,
               )}
             </p>
+
             <div className="mt-2 flex flex-wrap gap-2">
               <AppointmentPromotionBadge
                 priceSource={
@@ -594,6 +770,68 @@ function AppointmentCard({
             )}
           </div>
         </div>
+
+        {/* ================================= */}
+        {/* CANCELAMENTO */}
+        {/* ================================= */}
+
+        {cancellationState.notice && (
+          <div className="mt-5 rounded-2xl border border-[#E9D8A6] bg-[#FFF9EA] p-4">
+            <div className="flex items-start gap-3">
+              <Clock3 className="mt-0.5 size-4 shrink-0 text-[#8A6A2F]" />
+
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-[#745B25]">
+                  Cancelamento
+                </p>
+
+                <p className="mt-1 text-xs leading-5 text-[#806A3D]">
+                  {
+                    cancellationState
+                      .notice
+                  }
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {cancellationState.canCancel &&
+          cancellationState.actionLabel && (
+            <div className="mt-5 border-t border-[#EEEAE1] pt-4">
+              <button
+                type="button"
+                disabled={
+                  cancellationPending
+                }
+                onClick={() =>
+                  onRequestCancel(
+                    appointment,
+                  )
+                }
+                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#D8BEB7] bg-white px-4 text-sm font-semibold text-[#984B3E] transition hover:bg-[#FFF5F2] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {cancellationPending ? (
+                  <LoaderCircle className="size-4 animate-spin" />
+                ) : (
+                  <Ban className="size-4" />
+                )}
+
+                {
+                  cancellationState
+                    .actionLabel
+                }
+              </button>
+
+              {appointment.status ===
+                APPOINTMENT_STATUS
+                  .CONFIRMED && (
+                <p className="mt-2 text-center text-[10px] leading-4 text-[#8A8E84]">
+                  Cancelamentos online são permitidos com mais de 24 horas de antecedência.
+                </p>
+              )}
+            </div>
+          )}
       </div>
     </article>
   );
@@ -608,6 +846,26 @@ export default function ClientAppointmentsPage() {
       "ALL",
     );
 
+  const [
+    appointmentToCancel,
+    setAppointmentToCancel,
+  ] =
+    useState<
+      Appointment | null
+    >(
+      null,
+    );
+
+  const [
+    cancellationError,
+    setCancellationError,
+  ] =
+    useState<
+      string | null
+    >(
+      null,
+    );
+
   const {
     data,
     isLoading,
@@ -619,9 +877,12 @@ export default function ClientAppointmentsPage() {
 
   const {
     data:
-    services = [],
+      services = [],
   } =
     useClientBookableServices();
+
+  const cancelMutation =
+    useCancelClientAppointment();
 
   const upcoming =
     data?.upcoming ??
@@ -652,11 +913,11 @@ export default function ClientAppointmentsPage() {
         appointment,
       ) =>
         appointment.status ===
-        APPOINTMENT_STATUS
-          .CONFIRMED ||
+          APPOINTMENT_STATUS
+            .CONFIRMED ||
         appointment.status ===
-        APPOINTMENT_STATUS
-          .IN_PROGRESS,
+          APPOINTMENT_STATUS
+            .IN_PROGRESS,
     );
 
   const rejected =
@@ -705,7 +966,7 @@ export default function ClientAppointmentsPage() {
   function getFilteredAppointments():
     Appointment[] {
     switch (
-    filter
+      filter
     ) {
       case "PENDING":
         return pending;
@@ -727,479 +988,647 @@ export default function ClientAppointmentsPage() {
     }
   }
 
+  function handleOpenCancellation(
+    appointment:
+      Appointment,
+  ) {
+    /*
+     * Revalidamos a regra visual
+     * no momento do clique.
+     */
+    const cancellationState =
+      getClientCancellationState(
+        appointment,
+      );
+
+    if (
+      !cancellationState
+        .canCancel
+    ) {
+      return;
+    }
+
+    setCancellationError(
+      null,
+    );
+
+    setAppointmentToCancel(
+      appointment,
+    );
+  }
+
+  function handleCancellationDialogOpenChange(
+    open:
+      boolean,
+  ) {
+    if (
+      cancelMutation
+        .isPending
+    ) {
+      return;
+    }
+
+    if (!open) {
+      setAppointmentToCancel(
+        null,
+      );
+
+      setCancellationError(
+        null,
+      );
+    }
+  }
+
+  async function handleConfirmCancellation() {
+    if (
+      !appointmentToCancel ||
+      cancelMutation
+        .isPending
+    ) {
+      return;
+    }
+
+    setCancellationError(
+      null,
+    );
+
+    try {
+      await cancelMutation
+        .mutateAsync(
+          appointmentToCancel.id,
+        );
+
+      /*
+       * useCancelClientAppointment
+       * invalida automaticamente
+       * clientAppointmentsQueryKey.
+       *
+       * Portanto o agendamento sairá
+       * dos próximos horários e irá
+       * para o histórico como CANCELLED.
+       */
+      setAppointmentToCancel(
+        null,
+      );
+    } catch (
+      error
+    ) {
+      setCancellationError(
+        error instanceof
+          Error
+          ? error.message
+          : "Não foi possível cancelar o agendamento.",
+      );
+    }
+  }
+
   const filteredAppointments =
     getFilteredAppointments();
 
   const filters: {
     id:
-    AppointmentFilter;
+      AppointmentFilter;
 
     label:
-    string;
+      string;
 
     count:
-    number;
+      number;
   }[] = [
-      {
-        id:
-          "ALL",
+    {
+      id:
+        "ALL",
 
-        label:
-          "Todos",
+      label:
+        "Todos",
 
-        count:
-          allAppointments
-            .length,
-      },
+      count:
+        allAppointments
+          .length,
+    },
 
-      {
-        id:
-          "PENDING",
+    {
+      id:
+        "PENDING",
 
-        label:
-          "Aguardando",
+      label:
+        "Aguardando",
 
-        count:
-          pending.length,
-      },
+      count:
+        pending.length,
+    },
 
-      {
-        id:
-          "CONFIRMED",
+    {
+      id:
+        "CONFIRMED",
 
-        label:
-          "Confirmados",
+      label:
+        "Confirmados",
 
-        count:
-          confirmed.length,
-      },
+      count:
+        confirmed.length,
+    },
 
-      {
-        id:
-          "REJECTED",
+    {
+      id:
+        "REJECTED",
 
-        label:
-          "Recusados",
+      label:
+        "Recusados",
 
-        count:
-          rejected.length,
-      },
+      count:
+        rejected.length,
+    },
 
-      {
-        id:
-          "COMPLETED",
+    {
+      id:
+        "COMPLETED",
 
-        label:
-          "Concluídos",
+      label:
+        "Concluídos",
 
-        count:
-          completed.length,
-      },
+      count:
+        completed.length,
+    },
 
-      {
-        id:
-          "CANCELLED",
+    {
+      id:
+        "CANCELLED",
 
-        label:
-          "Cancelados",
+      label:
+        "Cancelados",
 
-        count:
-          cancelled.length,
-      },
-    ];
+      count:
+        cancelled.length,
+    },
+  ];
 
   return (
-    <div className="space-y-7 sm:space-y-8">
-      {/* CABEÇALHO */}
-      <section className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-sm font-medium text-[#7A8075]">
-            Sua agenda
-          </p>
+    <>
+      <div className="space-y-7 sm:space-y-8">
+        {/* CABEÇALHO */}
+        <section className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-sm font-medium text-[#7A8075]">
+              Sua agenda
+            </p>
 
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-[#263620] sm:text-3xl">
-            Meus agendamentos
-          </h1>
+            <h1 className="mt-1 text-2xl font-bold tracking-tight text-[#263620] sm:text-3xl">
+              Meus agendamentos
+            </h1>
 
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-[#71776D]">
-            Veja rapidamente o que está
-            aguardando confirmação, o que
-            foi confirmado e todo o seu
-            histórico.
-          </p>
-        </div>
-
-        <Link
-          href="/cliente/agendar"
-          className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#304229] px-5 text-sm font-semibold text-white transition hover:bg-[#25351F] sm:w-auto"
-        >
-          <CalendarPlus className="size-4" />
-
-          Novo agendamento
-        </Link>
-      </section>
-
-      {/* LOADING */}
-      {isLoading && (
-        <section className="flex min-h-60 items-center justify-center rounded-3xl border border-[#E5E0D5] bg-white shadow-sm">
-          <div className="text-center">
-            <LoaderCircle className="mx-auto size-7 animate-spin text-[#304229]" />
-
-            <p className="mt-3 text-sm text-[#71776D]">
-              Carregando seus agendamentos...
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[#71776D]">
+              Veja rapidamente o que está
+              aguardando confirmação, o que
+              foi confirmado e todo o seu
+              histórico.
             </p>
           </div>
+
+          <Link
+            href="/cliente/agendar"
+            className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#304229] px-5 text-sm font-semibold text-white transition hover:bg-[#25351F] sm:w-auto"
+          >
+            <CalendarPlus className="size-4" />
+
+            Novo agendamento
+          </Link>
         </section>
-      )}
 
-      {/* ERRO */}
-      {!isLoading &&
-        isError && (
-          <section className="rounded-3xl border border-[#E8D4CF] bg-white p-5 shadow-sm sm:p-6">
-            <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-              <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-[#FAECE8] text-[#9A4B3E]">
-                <TriangleAlert className="size-5" />
-              </div>
+        {/* LOADING */}
+        {isLoading && (
+          <section className="flex min-h-60 items-center justify-center rounded-3xl border border-[#E5E0D5] bg-white shadow-sm">
+            <div className="text-center">
+              <LoaderCircle className="mx-auto size-7 animate-spin text-[#304229]" />
 
-              <div className="flex-1">
-                <h2 className="font-semibold text-[#263620]">
-                  Não foi possível carregar seus agendamentos
-                </h2>
-
-                <p className="mt-1 text-sm leading-6 text-[#71776D]">
-                  Verifique sua conexão e tente novamente.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                disabled={
-                  isFetching
-                }
-                onClick={() =>
-                  void refetch()
-                }
-                className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[#D8D3C8] px-4 text-sm font-semibold text-[#304229] transition hover:bg-[#F6F4EE] disabled:opacity-50"
-              >
-                {isFetching
-                  ? "Tentando..."
-                  : "Tentar novamente"}
-              </button>
+              <p className="mt-3 text-sm text-[#71776D]">
+                Carregando seus agendamentos...
+              </p>
             </div>
           </section>
         )}
 
-      {!isLoading &&
-        !isError && (
-          <>
-            {/* RESUMO */}
-            <section>
-              <div className="mb-3">
-                <p className="text-sm font-medium text-[#7A8075]">
-                  Visão geral
-                </p>
+        {/* ERRO */}
+        {!isLoading &&
+          isError && (
+            <section className="rounded-3xl border border-[#E8D4CF] bg-white p-5 shadow-sm sm:p-6">
+              <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+                <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-[#FAECE8] text-[#9A4B3E]">
+                  <TriangleAlert className="size-5" />
+                </div>
 
-                <h2 className="mt-1 text-lg font-bold text-[#263620]">
-                  Situação dos seus pedidos
-                </h2>
-              </div>
+                <div className="flex-1">
+                  <h2 className="font-semibold text-[#263620]">
+                    Não foi possível carregar seus agendamentos
+                  </h2>
 
-              <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setFilter(
-                      "PENDING",
-                    )
-                  }
-                  className="rounded-2xl border border-[#E9D8A6] bg-[#FFF9EA] p-4 text-left transition active:scale-[0.98] sm:p-5"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex size-9 items-center justify-center rounded-xl bg-white text-[#8A6A2F]">
-                      <Clock3 className="size-4" />
-                    </div>
-
-                    <span className="text-2xl font-bold text-[#8A6A2F]">
-                      {
-                        pending.length
-                      }
-                    </span>
-                  </div>
-
-                  <p className="mt-3 text-xs font-bold text-[#65501F] sm:text-sm">
-                    Aguardando
+                  <p className="mt-1 text-sm leading-6 text-[#71776D]">
+                    Verifique sua conexão e tente novamente.
                   </p>
-
-                  <p className="mt-1 text-[11px] leading-4 text-[#8A774D]">
-                    Aguardando resposta
-                  </p>
-                </button>
+                </div>
 
                 <button
                   type="button"
-                  onClick={() =>
-                    setFilter(
-                      "CONFIRMED",
-                    )
+                  disabled={
+                    isFetching
                   }
-                  className="rounded-2xl border border-[#C9D9C4] bg-[#F2F7EF] p-4 text-left transition active:scale-[0.98] sm:p-5"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex size-9 items-center justify-center rounded-xl bg-white text-[#36542E]">
-                      <CheckCircle2 className="size-4" />
-                    </div>
-
-                    <span className="text-2xl font-bold text-[#36542E]">
-                      {
-                        confirmed.length
-                      }
-                    </span>
-                  </div>
-
-                  <p className="mt-3 text-xs font-bold text-[#36542E] sm:text-sm">
-                    Confirmados
-                  </p>
-
-                  <p className="mt-1 text-[11px] leading-4 text-[#6B7F65]">
-                    Horários confirmados
-                  </p>
-                </button>
-
-                <button
-                  type="button"
                   onClick={() =>
-                    setFilter(
-                      "REJECTED",
-                    )
+                    void refetch()
                   }
-                  className="rounded-2xl border border-[#E8CEC7] bg-[#FFF6F4] p-4 text-left transition active:scale-[0.98] sm:p-5"
+                  className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[#D8D3C8] px-4 text-sm font-semibold text-[#304229] transition hover:bg-[#F6F4EE] disabled:opacity-50"
                 >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex size-9 items-center justify-center rounded-xl bg-white text-[#984B3E]">
-                      <CircleX className="size-4" />
-                    </div>
-
-                    <span className="text-2xl font-bold text-[#984B3E]">
-                      {
-                        rejected.length
-                      }
-                    </span>
-                  </div>
-
-                  <p className="mt-3 text-xs font-bold text-[#984B3E] sm:text-sm">
-                    Recusados
-                  </p>
-
-                  <p className="mt-1 text-[11px] leading-4 text-[#9B7169]">
-                    Pedidos não confirmados
-                  </p>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    setFilter(
-                      "COMPLETED",
-                    )
-                  }
-                  className="rounded-2xl border border-[#DDE2DA] bg-[#F6F8F5] p-4 text-left transition active:scale-[0.98] sm:p-5"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex size-9 items-center justify-center rounded-xl bg-white text-[#596454]">
-                      <History className="size-4" />
-                    </div>
-
-                    <span className="text-2xl font-bold text-[#596454]">
-                      {
-                        completed.length
-                      }
-                    </span>
-                  </div>
-
-                  <p className="mt-3 text-xs font-bold text-[#596454] sm:text-sm">
-                    Concluídos
-                  </p>
-
-                  <p className="mt-1 text-[11px] leading-4 text-[#7E887A]">
-                    Atendimentos realizados
-                  </p>
+                  {isFetching
+                    ? "Tentando..."
+                    : "Tentar novamente"}
                 </button>
               </div>
             </section>
+          )}
 
-            {/* FILTROS */}
-            <section>
-              <div className="-mx-4 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
-                <div className="flex min-w-max gap-2 sm:min-w-0 sm:flex-wrap">
-                  {filters.map(
-                    (
-                      item,
-                    ) => {
-                      const active =
-                        filter ===
-                        item.id;
+        {!isLoading &&
+          !isError && (
+            <>
+              {/* RESUMO */}
+              <section>
+                <div className="mb-3">
+                  <p className="text-sm font-medium text-[#7A8075]">
+                    Visão geral
+                  </p>
 
-                      return (
-                        <button
-                          key={
-                            item.id
-                          }
-                          type="button"
-                          onClick={() =>
-                            setFilter(
-                              item.id,
-                            )
-                          }
-                          className={[
-                            "inline-flex min-h-10 items-center gap-2 rounded-full border px-4 text-xs font-semibold transition",
+                  <h2 className="mt-1 text-lg font-bold text-[#263620]">
+                    Situação dos seus pedidos
+                  </h2>
+                </div>
 
-                            active
-                              ? "border-[#304229] bg-[#304229] text-white"
-                              : "border-[#DDD8CE] bg-white text-[#62685E] hover:border-[#BCC5B7]",
-                          ].join(
-                            " ",
-                          )}
-                        >
-                          {
-                            item.label
-                          }
+                <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFilter(
+                        "PENDING",
+                      )
+                    }
+                    className="rounded-2xl border border-[#E9D8A6] bg-[#FFF9EA] p-4 text-left transition active:scale-[0.98] sm:p-5"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex size-9 items-center justify-center rounded-xl bg-white text-[#8A6A2F]">
+                        <Clock3 className="size-4" />
+                      </div>
 
-                          <span
+                      <span className="text-2xl font-bold text-[#8A6A2F]">
+                        {
+                          pending.length
+                        }
+                      </span>
+                    </div>
+
+                    <p className="mt-3 text-xs font-bold text-[#65501F] sm:text-sm">
+                      Aguardando
+                    </p>
+
+                    <p className="mt-1 text-[11px] leading-4 text-[#8A774D]">
+                      Aguardando resposta
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFilter(
+                        "CONFIRMED",
+                      )
+                    }
+                    className="rounded-2xl border border-[#C9D9C4] bg-[#F2F7EF] p-4 text-left transition active:scale-[0.98] sm:p-5"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex size-9 items-center justify-center rounded-xl bg-white text-[#36542E]">
+                        <CheckCircle2 className="size-4" />
+                      </div>
+
+                      <span className="text-2xl font-bold text-[#36542E]">
+                        {
+                          confirmed.length
+                        }
+                      </span>
+                    </div>
+
+                    <p className="mt-3 text-xs font-bold text-[#36542E] sm:text-sm">
+                      Confirmados
+                    </p>
+
+                    <p className="mt-1 text-[11px] leading-4 text-[#6B7F65]">
+                      Horários confirmados
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFilter(
+                        "REJECTED",
+                      )
+                    }
+                    className="rounded-2xl border border-[#E8CEC7] bg-[#FFF6F4] p-4 text-left transition active:scale-[0.98] sm:p-5"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex size-9 items-center justify-center rounded-xl bg-white text-[#984B3E]">
+                        <CircleX className="size-4" />
+                      </div>
+
+                      <span className="text-2xl font-bold text-[#984B3E]">
+                        {
+                          rejected.length
+                        }
+                      </span>
+                    </div>
+
+                    <p className="mt-3 text-xs font-bold text-[#984B3E] sm:text-sm">
+                      Recusados
+                    </p>
+
+                    <p className="mt-1 text-[11px] leading-4 text-[#9B7169]">
+                      Pedidos não confirmados
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFilter(
+                        "COMPLETED",
+                      )
+                    }
+                    className="rounded-2xl border border-[#DDE2DA] bg-[#F6F8F5] p-4 text-left transition active:scale-[0.98] sm:p-5"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex size-9 items-center justify-center rounded-xl bg-white text-[#596454]">
+                        <History className="size-4" />
+                      </div>
+
+                      <span className="text-2xl font-bold text-[#596454]">
+                        {
+                          completed.length
+                        }
+                      </span>
+                    </div>
+
+                    <p className="mt-3 text-xs font-bold text-[#596454] sm:text-sm">
+                      Concluídos
+                    </p>
+
+                    <p className="mt-1 text-[11px] leading-4 text-[#7E887A]">
+                      Atendimentos realizados
+                    </p>
+                  </button>
+                </div>
+              </section>
+
+              {/* FILTROS */}
+              <section>
+                <div className="-mx-4 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
+                  <div className="flex min-w-max gap-2 sm:min-w-0 sm:flex-wrap">
+                    {filters.map(
+                      (
+                        item,
+                      ) => {
+                        const active =
+                          filter ===
+                          item.id;
+
+                        return (
+                          <button
+                            key={
+                              item.id
+                            }
+                            type="button"
+                            onClick={() =>
+                              setFilter(
+                                item.id,
+                              )
+                            }
                             className={[
-                              "flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-bold",
+                              "inline-flex min-h-10 items-center gap-2 rounded-full border px-4 text-xs font-semibold transition",
 
                               active
-                                ? "bg-white/15 text-white"
-                                : "bg-[#F2F1EC] text-[#73786F]",
+                                ? "border-[#304229] bg-[#304229] text-white"
+                                : "border-[#DDD8CE] bg-white text-[#62685E] hover:border-[#BCC5B7]",
                             ].join(
                               " ",
                             )}
                           >
                             {
-                              item.count
+                              item.label
                             }
-                          </span>
-                        </button>
-                      );
-                    },
-                  )}
-                </div>
-              </div>
-            </section>
 
-            {/* TODOS */}
-            {filter ===
-              "ALL" ? (
-              <div className="space-y-8">
-                {/* EM ANDAMENTO */}
-                <section>
-                  <div className="mb-4 flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-medium text-[#7A8075]">
-                        Agora
-                      </p>
+                            <span
+                              className={[
+                                "flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-bold",
 
-                      <h2 className="mt-1 text-xl font-bold text-[#263620]">
-                        Solicitações e próximos horários
-                      </h2>
-                    </div>
-
-                    {upcoming.length >
-                      0 && (
-                        <span className="flex min-w-8 items-center justify-center rounded-full bg-[#EEF1EA] px-2.5 py-1 text-xs font-bold text-[#304229]">
-                          {
-                            upcoming.length
-                          }
-                        </span>
-                      )}
+                                active
+                                  ? "bg-white/15 text-white"
+                                  : "bg-[#F2F1EC] text-[#73786F]",
+                              ].join(
+                                " ",
+                              )}
+                            >
+                              {
+                                item.count
+                              }
+                            </span>
+                          </button>
+                        );
+                      },
+                    )}
                   </div>
+                </div>
+              </section>
 
-                  {upcoming.length ===
-                    0 ? (
-                    <div className="rounded-3xl border border-[#E5E0D5] bg-white p-6 text-center shadow-sm">
-                      <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-[#EEF1EA] text-[#304229]">
-                        <CalendarDays className="size-5" />
+              {/* TODOS */}
+              {filter ===
+                "ALL" ? (
+                <div className="space-y-8">
+                  {/* EM ANDAMENTO */}
+                  <section>
+                    <div className="mb-4 flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-medium text-[#7A8075]">
+                          Agora
+                        </p>
+
+                        <h2 className="mt-1 text-xl font-bold text-[#263620]">
+                          Solicitações e próximos horários
+                        </h2>
                       </div>
 
-                      <h3 className="mt-4 font-semibold text-[#263620]">
-                        Nenhum agendamento próximo
-                      </h3>
+                      {upcoming.length >
+                        0 && (
+                          <span className="flex min-w-8 items-center justify-center rounded-full bg-[#EEF1EA] px-2.5 py-1 text-xs font-bold text-[#304229]">
+                            {
+                              upcoming.length
+                            }
+                          </span>
+                        )}
+                    </div>
 
-                      <p className="mx-auto mt-1 max-w-md text-sm leading-6 text-[#71776D]">
-                        Quando você solicitar um novo horário,
-                        ele aparecerá aqui para acompanhamento.
+                    {upcoming.length ===
+                      0 ? (
+                      <div className="rounded-3xl border border-[#E5E0D5] bg-white p-6 text-center shadow-sm">
+                        <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-[#EEF1EA] text-[#304229]">
+                          <CalendarDays className="size-5" />
+                        </div>
+
+                        <h3 className="mt-4 font-semibold text-[#263620]">
+                          Nenhum agendamento próximo
+                        </h3>
+
+                        <p className="mx-auto mt-1 max-w-md text-sm leading-6 text-[#71776D]">
+                          Quando você solicitar um novo horário,
+                          ele aparecerá aqui para acompanhamento.
+                        </p>
+
+                        <Link
+                          href="/cliente/agendar"
+                          className="mt-4 inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#304229] px-4 text-sm font-semibold text-white"
+                        >
+                          <CalendarPlus className="size-4" />
+
+                          Agendar horário
+                        </Link>
+                      </div>
+                    ) : (
+                      <div className="grid gap-4 lg:grid-cols-2">
+                        {upcoming.map(
+                          (
+                            appointment,
+                          ) => (
+                            <AppointmentCard
+                              key={
+                                appointment.id
+                              }
+                              appointment={
+                                appointment
+                              }
+                              fallbackPriceType={
+                                getFallbackPriceType(
+                                  appointment,
+                                )
+                              }
+                              onRequestCancel={
+                                handleOpenCancellation
+                              }
+                              cancellationPending={
+                                cancelMutation
+                                  .isPending
+                              }
+                            />
+                          ),
+                        )}
+                      </div>
+                    )}
+                  </section>
+
+                  {/* HISTÓRICO */}
+                  <section>
+                    <div className="mb-4">
+                      <div className="flex items-center gap-2">
+                        <History className="size-4 text-[#7A8075]" />
+
+                        <p className="text-sm font-medium text-[#7A8075]">
+                          Histórico
+                        </p>
+                      </div>
+
+                      <h2 className="mt-1 text-xl font-bold text-[#263620]">
+                        Agendamentos anteriores
+                      </h2>
+
+                      <p className="mt-1 text-sm leading-6 text-[#7A8075]">
+                        Recusados, concluídos e cancelados ficam registrados aqui.
                       </p>
-
-                      <Link
-                        href="/cliente/agendar"
-                        className="mt-4 inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#304229] px-4 text-sm font-semibold text-white"
-                      >
-                        <CalendarPlus className="size-4" />
-
-                        Agendar horário
-                      </Link>
                     </div>
-                  ) : (
-                    <div className="grid gap-4 lg:grid-cols-2">
-                      {upcoming.map(
-                        (
-                          appointment,
-                        ) => (
-                          <AppointmentCard
-                            key={
-                              appointment.id
-                            }
-                            appointment={
-                              appointment
-                            }
-                            fallbackPriceType={
-                              getFallbackPriceType(
-                                appointment,
-                              )
-                            }
-                          />
-                        ),
-                      )}
-                    </div>
-                  )}
-                </section>
 
-                {/* HISTÓRICO */}
+                    {history.length ===
+                      0 ? (
+                      <div className="rounded-3xl border border-dashed border-[#D8D3C8] bg-[#FBFAF7] p-6 text-center">
+                        <History className="mx-auto size-6 text-[#7A8075]" />
+
+                        <h3 className="mt-3 font-semibold text-[#394035]">
+                          Nenhum histórico ainda
+                        </h3>
+
+                        <p className="mt-1 text-sm text-[#7A8075]">
+                          Seus atendimentos anteriores aparecerão aqui.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="grid gap-4 lg:grid-cols-2">
+                        {history.map(
+                          (
+                            appointment,
+                          ) => (
+                            <AppointmentCard
+                              key={
+                                appointment.id
+                              }
+                              appointment={
+                                appointment
+                              }
+                              fallbackPriceType={
+                                getFallbackPriceType(
+                                  appointment,
+                                )
+                              }
+                              onRequestCancel={
+                                handleOpenCancellation
+                              }
+                              cancellationPending={
+                                cancelMutation
+                                  .isPending
+                              }
+                            />
+                          ),
+                        )}
+                      </div>
+                    )}
+                  </section>
+                </div>
+              ) : (
+                /* RESULTADO DO FILTRO */
                 <section>
                   <div className="mb-4">
-                    <div className="flex items-center gap-2">
-                      <History className="size-4 text-[#7A8075]" />
-
-                      <p className="text-sm font-medium text-[#7A8075]">
-                        Histórico
-                      </p>
-                    </div>
+                    <p className="text-sm font-medium text-[#7A8075]">
+                      Resultado
+                    </p>
 
                     <h2 className="mt-1 text-xl font-bold text-[#263620]">
-                      Agendamentos anteriores
+                      {
+                        filters.find(
+                          (
+                            item,
+                          ) =>
+                            item.id ===
+                            filter,
+                        )?.label
+                      }
                     </h2>
-
-                    <p className="mt-1 text-sm leading-6 text-[#7A8075]">
-                      Recusados, concluídos e cancelados ficam registrados aqui.
-                    </p>
                   </div>
 
-                  {history.length ===
+                  {filteredAppointments.length ===
                     0 ? (
-                    <div className="rounded-3xl border border-dashed border-[#D8D3C8] bg-[#FBFAF7] p-6 text-center">
-                      <History className="mx-auto size-6 text-[#7A8075]" />
+                    <div className="rounded-3xl border border-dashed border-[#D8D3C8] bg-[#FBFAF7] p-7 text-center">
+                      <CalendarDays className="mx-auto size-6 text-[#7A8075]" />
 
                       <h3 className="mt-3 font-semibold text-[#394035]">
-                        Nenhum histórico ainda
+                        Nenhum agendamento nesta categoria
                       </h3>
 
                       <p className="mt-1 text-sm text-[#7A8075]">
-                        Seus atendimentos anteriores aparecerão aqui.
+                        Você não possui registros com esse status.
                       </p>
                     </div>
                   ) : (
                     <div className="grid gap-4 lg:grid-cols-2">
-                      {history.map(
+                      {filteredAppointments.map(
                         (
                           appointment,
                         ) => (
@@ -1215,74 +1644,42 @@ export default function ClientAppointmentsPage() {
                                 appointment,
                               )
                             }
+                            onRequestCancel={
+                              handleOpenCancellation
+                            }
+                            cancellationPending={
+                              cancelMutation
+                                .isPending
+                            }
                           />
                         ),
                       )}
                     </div>
                   )}
                 </section>
-              </div>
-            ) : (
-              /* RESULTADO DO FILTRO */
-              <section>
-                <div className="mb-4">
-                  <p className="text-sm font-medium text-[#7A8075]">
-                    Resultado
-                  </p>
+              )}
+            </>
+          )}
+      </div>
 
-                  <h2 className="mt-1 text-xl font-bold text-[#263620]">
-                    {
-                      filters.find(
-                        (
-                          item,
-                        ) =>
-                          item.id ===
-                          filter,
-                      )?.label
-                    }
-                  </h2>
-                </div>
-
-                {filteredAppointments.length ===
-                  0 ? (
-                  <div className="rounded-3xl border border-dashed border-[#D8D3C8] bg-[#FBFAF7] p-7 text-center">
-                    <CalendarDays className="mx-auto size-6 text-[#7A8075]" />
-
-                    <h3 className="mt-3 font-semibold text-[#394035]">
-                      Nenhum agendamento nesta categoria
-                    </h3>
-
-                    <p className="mt-1 text-sm text-[#7A8075]">
-                      Você não possui registros com esse status.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="grid gap-4 lg:grid-cols-2">
-                    {filteredAppointments.map(
-                      (
-                        appointment,
-                      ) => (
-                        <AppointmentCard
-                          key={
-                            appointment.id
-                          }
-                          appointment={
-                            appointment
-                          }
-                          fallbackPriceType={
-                            getFallbackPriceType(
-                              appointment,
-                            )
-                          }
-                        />
-                      ),
-                    )}
-                  </div>
-                )}
-              </section>
-            )}
-          </>
-        )}
-    </div>
+      <CancelClientAppointmentDialog
+        appointment={
+          appointmentToCancel
+        }
+        isPending={
+          cancelMutation
+            .isPending
+        }
+        error={
+          cancellationError
+        }
+        onOpenChange={
+          handleCancellationDialogOpenChange
+        }
+        onConfirm={() =>
+          void handleConfirmCancellation()
+        }
+      />
+    </>
   );
 }

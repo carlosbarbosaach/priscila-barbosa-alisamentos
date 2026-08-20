@@ -45,6 +45,10 @@ import {
 } from "@/features/appointments/components/AppointmentPromotionBadge";
 
 import {
+  CancelAdminAppointmentDialog,
+} from "@/features/appointments/components/CancelAdminAppointmentDialog";
+
+import {
   CompleteAppointmentDialog,
 } from "@/features/appointments/components/CompleteAppointmentDialog";
 
@@ -694,6 +698,16 @@ export function AdminAgendaPageContent({
     );
 
   const [
+    appointmentToCancel,
+    setAppointmentToCancel,
+  ] =
+    useState<
+      Appointment | null
+    >(
+      null,
+    );
+
+  const [
     appointmentToComplete,
     setAppointmentToComplete,
   ] =
@@ -827,6 +841,10 @@ export function AdminAgendaPageContent({
       null,
     );
 
+    setAppointmentToCancel(
+      null,
+    );
+
     setAppointmentToComplete(
       null,
     );
@@ -905,6 +923,10 @@ export function AdminAgendaPageContent({
       null,
     );
 
+    setAppointmentToCancel(
+      null,
+    );
+
     setAppointmentToComplete(
       null,
     );
@@ -948,6 +970,18 @@ export function AdminAgendaPageContent({
       null,
     );
 
+    setAppointmentToReject(
+      null,
+    );
+
+    setAppointmentToCancel(
+      null,
+    );
+
+    setAppointmentToComplete(
+      null,
+    );
+
     setStartingAppointmentId(
       appointmentId,
     );
@@ -984,6 +1018,14 @@ export function AdminAgendaPageContent({
     }
 
     setActionError(
+      null,
+    );
+
+    setAppointmentToReject(
+      null,
+    );
+
+    setAppointmentToCancel(
       null,
     );
 
@@ -1039,11 +1081,54 @@ export function AdminAgendaPageContent({
       null,
     );
 
+    setAppointmentToCancel(
+      null,
+    );
+
     setAppointmentToComplete(
       null,
     );
 
     setAppointmentToReject(
+      appointment,
+    );
+  }
+
+  function handleOpenCancelDialog(
+    appointment:
+      Appointment,
+  ) {
+    if (
+      isActionPending
+    ) {
+      return;
+    }
+
+    const canCancel =
+      appointment.status ===
+        APPOINTMENT_STATUS
+          .PENDING_APPROVAL ||
+      appointment.status ===
+        APPOINTMENT_STATUS
+          .CONFIRMED;
+
+    if (!canCancel) {
+      return;
+    }
+
+    setActionError(
+      null,
+    );
+
+    setAppointmentToReject(
+      null,
+    );
+
+    setAppointmentToComplete(
+      null,
+    );
+
+    setAppointmentToCancel(
       appointment,
     );
   }
@@ -1327,6 +1412,11 @@ export function AdminAgendaPageContent({
                       APPOINTMENT_STATUS
                         .COMPLETED;
 
+                    const isCancelled =
+                      appointment.status ===
+                      APPOINTMENT_STATUS
+                        .CANCELLED;
+
                     const isConfirming =
                       confirmingAppointmentId ===
                       appointment.id;
@@ -1344,18 +1434,6 @@ export function AdminAgendaPageContent({
                         appointment,
                       );
 
-                    /*
-                     * =================================
-                     * PROMOÇÃO
-                     * =================================
-                     *
-                     * Utilizamos o priceSource salvo
-                     * no próprio agendamento.
-                     *
-                     * Assim o histórico continua
-                     * correto mesmo que a promoção
-                     * seja retirada do serviço depois.
-                     */
                     const isPromotion =
                       appointment
                         .priceSource ===
@@ -1494,9 +1572,7 @@ export function AdminAgendaPageContent({
                             </div>
                           </div>
 
-                          {/* ================================= */}
                           {/* VALOR */}
-                          {/* ================================= */}
                           <div className="shrink-0 lg:min-w-[160px] lg:text-right">
                             <p className="text-xs font-medium uppercase tracking-wide text-[#8A8E84]">
                               {variablePrice
@@ -1554,6 +1630,24 @@ export function AdminAgendaPageContent({
                             </div>
                           )}
 
+                        {/* CANCELADO */}
+                        {isCancelled &&
+                          appointment
+                            .cancellationReason && (
+                            <div className="mt-5 rounded-xl border border-[#DDD8D0] bg-[#F8F6F2] px-4 py-3">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-[#69645D]">
+                                Motivo do cancelamento
+                              </p>
+
+                              <p className="mt-1 text-sm leading-6 text-[#625E58]">
+                                {
+                                  appointment
+                                    .cancellationReason
+                                }
+                              </p>
+                            </div>
+                          )}
+
                         {/* PENDENTE */}
                         {isPending && (
                           <div className="mt-5 flex flex-col gap-3 border-t border-[#EAE4D8] pt-5 sm:flex-row sm:items-center sm:justify-end">
@@ -1573,6 +1667,24 @@ export function AdminAgendaPageContent({
                               <CircleX className="mr-2 size-4" />
 
                               Recusar
+                            </Button>
+
+                            <Button
+                              type="button"
+                              variant="outline"
+                              disabled={
+                                isActionPending
+                              }
+                              onClick={() =>
+                                handleOpenCancelDialog(
+                                  appointment,
+                                )
+                              }
+                              className="border-[#D8BEB7] text-[#984B3E] hover:bg-[#FFF5F2] hover:text-[#813E34]"
+                            >
+                              <Ban className="mr-2 size-4" />
+
+                              Cancelar
                             </Button>
 
                             <Button
@@ -1602,7 +1714,25 @@ export function AdminAgendaPageContent({
 
                         {/* CONFIRMADO */}
                         {isConfirmed && (
-                          <div className="mt-5 flex justify-end border-t border-[#EAE4D8] pt-5">
+                          <div className="mt-5 flex flex-col gap-3 border-t border-[#EAE4D8] pt-5 sm:flex-row sm:items-center sm:justify-end">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              disabled={
+                                isActionPending
+                              }
+                              onClick={() =>
+                                handleOpenCancelDialog(
+                                  appointment,
+                                )
+                              }
+                              className="border-[#D8BEB7] text-[#984B3E] hover:bg-[#FFF5F2] hover:text-[#813E34]"
+                            >
+                              <Ban className="mr-2 size-4" />
+
+                              Cancelar agendamento
+                            </Button>
+
                             <Button
                               type="button"
                               disabled={
@@ -1683,6 +1813,30 @@ export function AdminAgendaPageContent({
           ) => {
             if (!open) {
               setAppointmentToReject(
+                null,
+              );
+            }
+          }}
+        />
+      )}
+
+      {/* ================================= */}
+      {/* MODAL CANCELAMENTO */}
+      {/* ================================= */}
+
+      {appointmentToCancel && (
+        <CancelAdminAppointmentDialog
+          key={
+            appointmentToCancel.id
+          }
+          appointment={
+            appointmentToCancel
+          }
+          onOpenChange={(
+            open,
+          ) => {
+            if (!open) {
+              setAppointmentToCancel(
                 null,
               );
             }

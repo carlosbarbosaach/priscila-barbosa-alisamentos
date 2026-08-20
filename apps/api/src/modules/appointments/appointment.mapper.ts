@@ -27,12 +27,14 @@ export function mapAppointmentEntityToAppointment(
       appointment.status,
 
     startsAt:
-      appointment.startsAt
+      appointment
+        .startsAt
         .toDate()
         .toISOString(),
 
     endsAt:
-      appointment.endsAt
+      appointment
+        .endsAt
         .toDate()
         .toISOString(),
 
@@ -54,10 +56,6 @@ export function mapAppointmentEntityToAppointment(
     /*
      * Agendamentos antigos não possuem
      * este snapshot.
-     *
-     * Nesse caso enviamos null para o
-     * frontend poder utilizar um fallback
-     * temporário pelo serviço atual.
      */
     servicePriceTypeSnapshot:
       appointment
@@ -75,17 +73,46 @@ export function mapAppointmentEntityToAppointment(
       appointment
         .rejectionReason,
 
+    /*
+     * =================================
+     * CANCELAMENTO
+     * =================================
+     *
+     * Compatibilidade com documentos
+     * antigos:
+     *
+     * undefined
+     * ↓
+     * null
+     */
+    cancelledBy:
+      appointment
+        .cancelledBy ??
+      null,
+
+    cancelledAt:
+      appointment
+        .cancelledAt
+        ? appointment
+            .cancelledAt
+            .toDate()
+            .toISOString()
+        : null,
+
     cancellationReason:
       appointment
-        .cancellationReason,
+        .cancellationReason ??
+      null,
 
     createdAt:
-      appointment.createdAt
+      appointment
+        .createdAt
         .toDate()
         .toISOString(),
 
     updatedAt:
-      appointment.updatedAt
+      appointment
+        .updatedAt
         .toDate()
         .toISOString(),
   };

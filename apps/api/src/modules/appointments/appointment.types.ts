@@ -1,4 +1,5 @@
 import type {
+  Appointment,
   AppointmentPriceSource,
   AppointmentStatus,
   ServicePriceType,
@@ -9,33 +10,49 @@ import type {
 } from "firebase-admin/firestore";
 
 export type AppointmentOccupancyIntervalDocument = {
-  startOffsetMinutes: number;
+  startOffsetMinutes:
+    number;
 
-  endOffsetMinutes: number;
+  endOffsetMinutes:
+    number;
 };
 
 export type AppointmentDocument = {
-  salonId: string;
+  salonId:
+    string;
 
-  clientId: string;
-  serviceId: string;
+  clientId:
+    string;
 
-  status: AppointmentStatus;
+  serviceId:
+    string;
 
-  dateKey: string;
+  status:
+    AppointmentStatus;
 
-  startsAt: Timestamp;
-  endsAt: Timestamp;
+  dateKey:
+    string;
 
-  durationMinutes: number;
+  startsAt:
+    Timestamp;
+
+  endsAt:
+    Timestamp;
+
+  durationMinutes:
+    number;
 
   professionalOccupancySnapshot?:
     AppointmentOccupancyIntervalDocument[];
 
-  clientNameSnapshot: string;
-  clientPhoneSnapshot: string;
+  clientNameSnapshot:
+    string;
 
-  serviceNameSnapshot: string;
+  clientPhoneSnapshot:
+    string;
+
+  serviceNameSnapshot:
+    string;
 
   /*
    * Opcional no Firestore para manter
@@ -45,7 +62,8 @@ export type AppointmentDocument = {
   servicePriceTypeSnapshot?:
     ServicePriceType;
 
-  chargedPriceCents: number;
+  chargedPriceCents:
+    number;
 
   priceSource:
     AppointmentPriceSource;
@@ -53,14 +71,35 @@ export type AppointmentDocument = {
   rejectionReason:
     string | null;
 
-  cancellationReason:
+  /*
+   * =================================
+   * CANCELAMENTO
+   * =================================
+   *
+   * Todos estes campos permanecem
+   * opcionais no documento porque
+   * agendamentos antigos do Firestore
+   * não possuem esses dados.
+   */
+
+  cancelledBy?:
+    Appointment["cancelledBy"];
+
+  cancelledAt?:
+    Timestamp | null;
+
+  cancellationReason?:
     string | null;
 
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt:
+    Timestamp;
+
+  updatedAt:
+    Timestamp;
 };
 
 export type AppointmentEntity =
   AppointmentDocument & {
-    id: string;
+    id:
+      string;
   };

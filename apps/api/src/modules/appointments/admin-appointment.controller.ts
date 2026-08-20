@@ -8,6 +8,7 @@ import {
   AdminAppointmentDecisionService,
   AdminAppointmentFinalPriceBelowBaseError,
   AdminAppointmentFinalPriceRequiredError,
+  AdminAppointmentInvalidCancellationReasonError,
   AdminAppointmentInvalidFinalPriceError,
   AdminAppointmentInvalidStatusError,
   AdminAppointmentNotFoundError,
@@ -20,6 +21,7 @@ import {
 import {
   adminAppointmentListQuerySchema,
   adminAppointmentParamsSchema,
+  cancelAdminAppointmentSchema,
   completeAdminAppointmentSchema,
   rejectAdminAppointmentSchema,
 } from "./admin-appointment.schema.js";
@@ -35,10 +37,13 @@ const adminAppointmentDecisionService =
   new AdminAppointmentDecisionService();
 
 function getSalonId(
-  request: FastifyRequest,
+  request:
+    FastifyRequest,
 ): string | null {
   return (
-    request.appUser?.salonId ??
+    request
+      .appUser
+      ?.salonId ??
     null
   );
 }
@@ -47,13 +52,13 @@ function getSalonId(
  * =================================
  * LISTAR AGENDA
  * =================================
- *
- * GET
- * /api/v1/admin/appointments
  */
 export async function listAdminAppointmentsController(
-  request: FastifyRequest,
-  reply: FastifyReply,
+  request:
+    FastifyRequest,
+
+  reply:
+    FastifyReply,
 ) {
   const salonId =
     getSalonId(
@@ -62,7 +67,9 @@ export async function listAdminAppointmentsController(
 
   if (!salonId) {
     return reply
-      .status(403)
+      .status(
+        403,
+      )
       .send({
         message:
           "Salão do usuário não identificado.",
@@ -77,7 +84,9 @@ export async function listAdminAppointmentsController(
 
   if (!parsedQuery.success) {
     return reply
-      .status(400)
+      .status(
+        400,
+      )
       .send({
         message:
           "Dados da consulta da agenda inválidos.",
@@ -108,9 +117,12 @@ export async function listAdminAppointmentsController(
       appointments:
         result.appointments,
     });
-  } catch (error) {
+  } catch (
+    error
+  ) {
     if (
-      error instanceof Error &&
+      error instanceof
+        Error &&
       (
         error.message ===
           "Data inválida." ||
@@ -119,7 +131,9 @@ export async function listAdminAppointmentsController(
       )
     ) {
       return reply
-        .status(400)
+        .status(
+          400,
+        )
         .send({
           message:
             error.message,
@@ -134,14 +148,13 @@ export async function listAdminAppointmentsController(
  * =================================
  * CONFIRMAR
  * =================================
- *
- * PENDING_APPROVAL
- * ↓
- * CONFIRMED
  */
 export async function confirmAdminAppointmentController(
-  request: FastifyRequest,
-  reply: FastifyReply,
+  request:
+    FastifyRequest,
+
+  reply:
+    FastifyReply,
 ) {
   return executeAppointmentAction(
     request,
@@ -152,46 +165,23 @@ export async function confirmAdminAppointmentController(
 
 /*
  * =================================
- * INICIAR ATENDIMENTO
+ * CANCELAR
  * =================================
  *
+ * PENDING_APPROVAL
+ * ou
  * CONFIRMED
+ *
  * ↓
- * IN_PROGRESS
+ *
+ * CANCELLED
  */
-export async function startAdminAppointmentController(
-  request: FastifyRequest,
-  reply: FastifyReply,
-) {
-  return executeAppointmentAction(
-    request,
-    reply,
-    "start",
-  );
-}
+export async function cancelAdminAppointmentController(
+  request:
+    FastifyRequest,
 
-/*
- * =================================
- * CONCLUIR ATENDIMENTO
- * =================================
- *
- * IN_PROGRESS
- * ↓
- * COMPLETED
- *
- * Serviço FIXED:
- *
- * PATCH sem body.
- *
- * Serviço STARTING_FROM:
- *
- * {
- *   finalPriceCents: 65000
- * }
- */
-export async function completeAdminAppointmentController(
-  request: FastifyRequest,
-  reply: FastifyReply,
+  reply:
+    FastifyReply,
 ) {
   const salonId =
     getSalonId(
@@ -200,7 +190,9 @@ export async function completeAdminAppointmentController(
 
   if (!salonId) {
     return reply
-      .status(403)
+      .status(
+        403,
+      )
       .send({
         message:
           "Salão do usuário não identificado.",
@@ -215,7 +207,9 @@ export async function completeAdminAppointmentController(
 
   if (!parsedParams.success) {
     return reply
-      .status(400)
+      .status(
+        400,
+      )
       .send({
         message:
           "Parâmetros do agendamento inválidos.",
@@ -227,13 +221,132 @@ export async function completeAdminAppointmentController(
       });
   }
 
-  /*
-   * Serviço FIXED pode chamar
-   * PATCH sem body.
-   *
-   * Por isso usamos {} quando
-   * request.body não existir.
-   */
+  const parsedBody =
+    cancelAdminAppointmentSchema
+      .safeParse(
+        request.body,
+      );
+
+  if (!parsedBody.success) {
+    return reply
+      .status(
+        400,
+      )
+      .send({
+        message:
+          "Dados do cancelamento inválidos.",
+
+        issues:
+          parsedBody
+            .error
+            .issues,
+      });
+  }
+
+  try {
+    const appointmentEntity =
+      await adminAppointmentDecisionService
+        .cancel({
+          salonId,
+
+          appointmentId:
+            parsedParams
+              .data
+              .appointmentId,
+
+          cancellationReason:
+            parsedBody
+              .data
+              .cancellationReason,
+        });
+
+    const appointment =
+      mapAppointmentEntityToAppointment(
+        appointmentEntity,
+      );
+
+    return reply.send({
+      appointment,
+    });
+  } catch (
+    error
+  ) {
+    return handleAdminAppointmentError(
+      error,
+      reply,
+    );
+  }
+}
+
+/*
+ * =================================
+ * INICIAR
+ * =================================
+ */
+export async function startAdminAppointmentController(
+  request:
+    FastifyRequest,
+
+  reply:
+    FastifyReply,
+) {
+  return executeAppointmentAction(
+    request,
+    reply,
+    "start",
+  );
+}
+
+/*
+ * =================================
+ * CONCLUIR
+ * =================================
+ */
+export async function completeAdminAppointmentController(
+  request:
+    FastifyRequest,
+
+  reply:
+    FastifyReply,
+) {
+  const salonId =
+    getSalonId(
+      request,
+    );
+
+  if (!salonId) {
+    return reply
+      .status(
+        403,
+      )
+      .send({
+        message:
+          "Salão do usuário não identificado.",
+      });
+  }
+
+  const parsedParams =
+    adminAppointmentParamsSchema
+      .safeParse(
+        request.params,
+      );
+
+  if (!parsedParams.success) {
+    return reply
+      .status(
+        400,
+      )
+      .send({
+        message:
+          "Parâmetros do agendamento inválidos.",
+
+        issues:
+          parsedParams
+            .error
+            .issues,
+      });
+  }
+
   const parsedBody =
     completeAdminAppointmentSchema
       .safeParse(
@@ -243,7 +356,9 @@ export async function completeAdminAppointmentController(
 
   if (!parsedBody.success) {
     return reply
-      .status(400)
+      .status(
+        400,
+      )
       .send({
         message:
           "Dados para conclusão do atendimento inválidos.",
@@ -255,23 +370,6 @@ export async function completeAdminAppointmentController(
       });
   }
 
-  /*
-   * IMPORTANTE:
-   *
-   * Com:
-   *
-   * exactOptionalPropertyTypes: true
-   *
-   * não podemos fazer:
-   *
-   * {
-   *   finalPriceCents: undefined
-   * }
-   *
-   * Quando não existir valor final,
-   * a propriedade deve simplesmente
-   * não existir no objeto.
-   */
   const completeInput = {
     salonId,
 
@@ -310,7 +408,9 @@ export async function completeAdminAppointmentController(
     return reply.send({
       appointment,
     });
-  } catch (error) {
+  } catch (
+    error
+  ) {
     return handleAdminAppointmentError(
       error,
       reply,
@@ -322,22 +422,13 @@ export async function completeAdminAppointmentController(
  * =================================
  * RECUSAR
  * =================================
- *
- * PENDING_APPROVAL
- * ↓
- * REJECTED
- *
- * blockSlot = false
- * ↓
- * libera o horário.
- *
- * blockSlot = true
- * ↓
- * cria bloqueio administrativo.
  */
 export async function rejectAdminAppointmentController(
-  request: FastifyRequest,
-  reply: FastifyReply,
+  request:
+    FastifyRequest,
+
+  reply:
+    FastifyReply,
 ) {
   const salonId =
     getSalonId(
@@ -346,7 +437,9 @@ export async function rejectAdminAppointmentController(
 
   if (!salonId) {
     return reply
-      .status(403)
+      .status(
+        403,
+      )
       .send({
         message:
           "Salão do usuário não identificado.",
@@ -361,7 +454,9 @@ export async function rejectAdminAppointmentController(
 
   if (!parsedParams.success) {
     return reply
-      .status(400)
+      .status(
+        400,
+      )
       .send({
         message:
           "Parâmetros do agendamento inválidos.",
@@ -381,7 +476,9 @@ export async function rejectAdminAppointmentController(
 
   if (!parsedBody.success) {
     return reply
-      .status(400)
+      .status(
+        400,
+      )
       .send({
         message:
           "Dados da recusa inválidos.",
@@ -423,7 +520,9 @@ export async function rejectAdminAppointmentController(
     return reply.send({
       appointment,
     });
-  } catch (error) {
+  } catch (
+    error
+  ) {
     return handleAdminAppointmentError(
       error,
       reply,
@@ -435,22 +534,15 @@ type AppointmentAction =
   | "confirm"
   | "start";
 
-/*
- * =================================
- * AÇÕES SEM BODY
- * =================================
- *
- * Confirmar e iniciar continuam
- * utilizando este controller
- * compartilhado.
- *
- * Concluir não utiliza mais porque
- * agora pode receber finalPriceCents.
- */
 async function executeAppointmentAction(
-  request: FastifyRequest,
-  reply: FastifyReply,
-  action: AppointmentAction,
+  request:
+    FastifyRequest,
+
+  reply:
+    FastifyReply,
+
+  action:
+    AppointmentAction,
 ) {
   const salonId =
     getSalonId(
@@ -459,7 +551,9 @@ async function executeAppointmentAction(
 
   if (!salonId) {
     return reply
-      .status(403)
+      .status(
+        403,
+      )
       .send({
         message:
           "Salão do usuário não identificado.",
@@ -474,7 +568,9 @@ async function executeAppointmentAction(
 
   if (!parsedParams.success) {
     return reply
-      .status(400)
+      .status(
+        400,
+      )
       .send({
         message:
           "Parâmetros do agendamento inválidos.",
@@ -516,7 +612,9 @@ async function executeAppointmentAction(
     return reply.send({
       appointment,
     });
-  } catch (error) {
+  } catch (
+    error
+  ) {
     return handleAdminAppointmentError(
       error,
       reply,
@@ -530,106 +628,113 @@ async function executeAppointmentAction(
  * =================================
  */
 function handleAdminAppointmentError(
-  error: unknown,
-  reply: FastifyReply,
+  error:
+    unknown,
+
+  reply:
+    FastifyReply,
 ) {
-  /*
-   * Agendamento não encontrado.
-   */
   if (
     error instanceof
     AdminAppointmentNotFoundError
   ) {
     return reply
-      .status(404)
+      .status(
+        404,
+      )
       .send({
         message:
           error.message,
       });
   }
 
-  /*
-   * Status não permite a operação.
-   */
   if (
     error instanceof
     AdminAppointmentInvalidStatusError
   ) {
     return reply
-      .status(409)
+      .status(
+        409,
+      )
       .send({
         message:
           error.message,
       });
   }
 
-  /*
-   * Alteração concorrente.
-   */
   if (
     error instanceof
     AdminAppointmentConsistencyError
   ) {
     return reply
-      .status(409)
+      .status(
+        409,
+      )
       .send({
         message:
           error.message,
       });
   }
 
-  /*
-   * Serviço STARTING_FROM sem
-   * valor final informado.
-   */
+  if (
+    error instanceof
+    AdminAppointmentInvalidCancellationReasonError
+  ) {
+    return reply
+      .status(
+        400,
+      )
+      .send({
+        message:
+          error.message,
+      });
+  }
+
   if (
     error instanceof
     AdminAppointmentFinalPriceRequiredError
   ) {
     return reply
-      .status(400)
+      .status(
+        400,
+      )
       .send({
         message:
           error.message,
       });
   }
 
-  /*
-   * Valor final inválido.
-   */
   if (
     error instanceof
     AdminAppointmentInvalidFinalPriceError
   ) {
     return reply
-      .status(400)
+      .status(
+        400,
+      )
       .send({
         message:
           error.message,
       });
   }
 
-  /*
-   * Valor final inferior ao
-   * valor inicial.
-   */
   if (
     error instanceof
     AdminAppointmentFinalPriceBelowBaseError
   ) {
     return reply
-      .status(400)
+      .status(
+        400,
+      )
       .send({
         message:
           error.message,
       });
   }
 
-  /*
-   * Validações da recusa.
-   */
   if (
-    error instanceof Error &&
+    error instanceof
+      Error &&
     (
       error.message ===
         "Informe um motivo para a recusa." ||
@@ -638,7 +743,9 @@ function handleAdminAppointmentError(
     )
   ) {
     return reply
-      .status(400)
+      .status(
+        400,
+      )
       .send({
         message:
           error.message,

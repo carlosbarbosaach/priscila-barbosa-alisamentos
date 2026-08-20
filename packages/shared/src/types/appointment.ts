@@ -10,43 +10,81 @@ import type {
   ServicePriceType,
 } from "./service.js";
 
-export type Appointment = {
-  id: string;
+/*
+ * =================================
+ * ORIGEM DO CANCELAMENTO
+ * =================================
+ *
+ * CLIENT
+ * → cancelado pela própria cliente.
+ *
+ * ADMIN
+ * → cancelado pela administração.
+ */
+export const APPOINTMENT_CANCELLED_BY = {
+  CLIENT:
+    "CLIENT",
 
-  salonId: string;
+  ADMIN:
+    "ADMIN",
+} as const;
+
+export type AppointmentCancelledBy =
+  typeof APPOINTMENT_CANCELLED_BY[
+    keyof typeof APPOINTMENT_CANCELLED_BY
+  ];
+
+export type Appointment = {
+  id:
+    string;
+
+  salonId:
+    string;
 
   /*
    * Referências atuais.
    */
-  clientId: string;
-  serviceId: string;
+  clientId:
+    string;
+
+  serviceId:
+    string;
 
   /*
    * Ciclo de vida.
    */
-  status: AppointmentStatus;
+  status:
+    AppointmentStatus;
 
   /*
    * Horário efetivamente reservado.
    */
-  startsAt: string;
-  endsAt: string;
+  startsAt:
+    string;
+
+  endsAt:
+    string;
 
   /*
    * Snapshot da duração.
    */
-  durationMinutes: number;
+  durationMinutes:
+    number;
 
   /*
    * Snapshots da cliente.
    */
-  clientNameSnapshot: string;
-  clientPhoneSnapshot: string;
+  clientNameSnapshot:
+    string;
+
+  clientPhoneSnapshot:
+    string;
 
   /*
    * Snapshot do serviço.
    */
-  serviceNameSnapshot: string;
+  serviceNameSnapshot:
+    string;
 
   /*
    * Tipo de preço que o serviço
@@ -70,21 +108,67 @@ export type Appointment = {
    * representa inicialmente o
    * valor base.
    */
-  chargedPriceCents: number;
+  chargedPriceCents:
+    number;
 
   /*
    * SERVICE_DEFAULT
    * CLIENT_SPECIAL
+   * PROMOTION
    */
   priceSource:
     AppointmentPriceSource;
 
+  /*
+   * =================================
+   * RECUSA
+   * =================================
+   *
+   * Utilizado quando o salão
+   * recusa uma solicitação.
+   */
   rejectionReason:
     string | null;
 
+  /*
+   * =================================
+   * CANCELAMENTO
+   * =================================
+   *
+   * CLIENT
+   * → cliente cancelou.
+   *
+   * ADMIN
+   * → administração cancelou.
+   *
+   * null
+   * → agendamento nunca foi cancelado
+   *   ou é um registro antigo.
+   */
+  cancelledBy:
+    AppointmentCancelledBy | null;
+
+  /*
+   * Data/hora exata em que
+   * ocorreu o cancelamento.
+   */
+  cancelledAt:
+    string | null;
+
+  /*
+   * CLIENT:
+   * inicialmente poderá ser null.
+   *
+   * ADMIN:
+   * posteriormente será obrigatório
+   * pela regra de negócio.
+   */
   cancellationReason:
     string | null;
 
-  createdAt: string;
-  updatedAt: string;
+  createdAt:
+    string;
+
+  updatedAt:
+    string;
 };

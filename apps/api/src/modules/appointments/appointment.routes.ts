@@ -15,6 +15,7 @@ import {
 } from "../../shared/middleware/require-role.middleware.js";
 
 import {
+  cancelClientAppointmentController,
   createAppointmentController,
   getAppointmentAvailabilityController,
   listClientAppointmentsController,
@@ -31,56 +32,112 @@ const clientOnly = [
 
 export const appointmentRoutes:
   FastifyPluginAsync =
-    async (app) => {
+    async (
+      app,
+    ) => {
       /*
+       * =================================
+       * SERVIÇOS DA CLIENTE
+       * =================================
+       *
        * Serviços disponíveis e
        * preço personalizado.
        */
       app.get(
         "/services",
+
         {
           preHandler:
             clientOnly,
         },
+
         listClientBookableServicesController,
       );
 
       /*
-       * Agendamentos da própria CLIENT.
+       * =================================
+       * MEUS AGENDAMENTOS
+       * =================================
        *
        * Nenhum clientId é recebido
        * pela URL.
+       *
+       * A cliente é identificada
+       * pela autenticação.
        */
       app.get(
         "/mine",
+
         {
           preHandler:
             clientOnly,
         },
+
         listClientAppointmentsController,
       );
 
       /*
-       * Horários disponíveis.
+       * =================================
+       * CANCELAMENTO PELA CLIENTE
+       * =================================
+       *
+       * PATCH
+       *
+       * /api/v1/appointments/
+       * mine/:appointmentId/cancel
+       *
+       * A cliente envia somente
+       * o ID do agendamento.
+       *
+       * salonId e clientId são
+       * determinados pelo backend.
        */
-      app.get(
-        "/availability",
+      app.patch(
+        "/mine/:appointmentId/cancel",
+
         {
           preHandler:
             clientOnly,
         },
+
+        cancelClientAppointmentController,
+      );
+
+      /*
+       * =================================
+       * DISPONIBILIDADE
+       * =================================
+       *
+       * Horários disponíveis
+       * para determinado serviço.
+       */
+      app.get(
+        "/availability",
+
+        {
+          preHandler:
+            clientOnly,
+        },
+
         getAppointmentAvailabilityController,
       );
 
       /*
-       * Solicitar agendamento.
+       * =================================
+       * NOVO AGENDAMENTO
+       * =================================
+       *
+       * Cliente solicita
+       * um novo horário.
        */
       app.post(
         "/",
+
         {
           preHandler:
             clientOnly,
         },
+
         createAppointmentController,
       );
     };
