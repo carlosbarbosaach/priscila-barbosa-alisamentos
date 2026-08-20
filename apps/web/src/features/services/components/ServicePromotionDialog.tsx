@@ -11,6 +11,7 @@ import type {
 
 import {
     BadgePercent,
+    CalendarDays,
     Flame,
     Loader2,
     Trash2,
@@ -89,6 +90,84 @@ function formatPriceInput(
     );
 }
 
+const DATE_ONLY_REGEX =
+    /^\d{4}-\d{2}-\d{2}$/;
+
+function isValidDateOnly(
+    value:
+        string,
+): boolean {
+    if (
+        !DATE_ONLY_REGEX.test(
+            value,
+        )
+    ) {
+        return false;
+    }
+
+    const [
+        yearText,
+        monthText,
+        dayText,
+    ] =
+        value.split("-");
+
+    const year =
+        Number(
+            yearText,
+        );
+
+    const month =
+        Number(
+            monthText,
+        );
+
+    const day =
+        Number(
+            dayText,
+        );
+
+    const date =
+        new Date(
+            Date.UTC(
+                year,
+                month - 1,
+                day,
+            ),
+        );
+
+    return (
+        date.getUTCFullYear() ===
+            year &&
+        date.getUTCMonth() ===
+            month - 1 &&
+        date.getUTCDate() ===
+            day
+    );
+}
+
+function formatDateOnly(
+    value:
+        string,
+): string {
+    if (
+        !isValidDateOnly(
+            value,
+        )
+    ) {
+        return value;
+    }
+
+    const [
+        year,
+        month,
+        day,
+    ] =
+        value.split("-");
+
+    return `${day}/${month}/${year}`;
+}
+
 export function ServicePromotionDialog({
     service,
 }: ServicePromotionDialogProps) {
@@ -126,6 +205,26 @@ export function ServicePromotionDialog({
         );
 
     const [
+        promotionStartsOn,
+        setPromotionStartsOn,
+    ] =
+        useState(
+            service
+                .promotionStartsOn ??
+                "",
+        );
+
+    const [
+        promotionEndsOn,
+        setPromotionEndsOn,
+    ] =
+        useState(
+            service
+                .promotionEndsOn ??
+                "",
+        );
+
+    const [
         formError,
         setFormError,
     ] =
@@ -160,6 +259,16 @@ export function ServicePromotionDialog({
                   priceDigits,
               )
             : null;
+
+    const promotionPeriodIsComplete =
+        isValidDateOnly(
+            promotionStartsOn,
+        ) &&
+        isValidDateOnly(
+            promotionEndsOn,
+        ) &&
+        promotionStartsOn <=
+            promotionEndsOn;
 
     const discountPercentage =
         promotionPriceCents !==
@@ -203,6 +312,18 @@ export function ServicePromotionDialog({
             service
                 .promotionLabel ??
                 "Promoção",
+        );
+
+        setPromotionStartsOn(
+            service
+                .promotionStartsOn ??
+                "",
+        );
+
+        setPromotionEndsOn(
+            service
+                .promotionEndsOn ??
+                "",
         );
 
         setFormError(
@@ -253,6 +374,32 @@ export function ServicePromotionDialog({
 
         setPriceDigits(
             digits,
+        );
+
+        setFormError(
+            "",
+        );
+    }
+
+    function handleStartDateChange(
+        value:
+            string,
+    ) {
+        setPromotionStartsOn(
+            value,
+        );
+
+        setFormError(
+            "",
+        );
+    }
+
+    function handleEndDateChange(
+        value:
+            string,
+    ) {
+        setPromotionEndsOn(
+            value,
         );
 
         setFormError(
@@ -328,6 +475,61 @@ export function ServicePromotionDialog({
             return;
         }
 
+        if (
+            !promotionStartsOn
+        ) {
+            setFormError(
+                "Informe a data inicial da promoção.",
+            );
+
+            return;
+        }
+
+        if (
+            !isValidDateOnly(
+                promotionStartsOn,
+            )
+        ) {
+            setFormError(
+                "Informe uma data inicial válida.",
+            );
+
+            return;
+        }
+
+        if (
+            !promotionEndsOn
+        ) {
+            setFormError(
+                "Informe a data final da promoção.",
+            );
+
+            return;
+        }
+
+        if (
+            !isValidDateOnly(
+                promotionEndsOn,
+            )
+        ) {
+            setFormError(
+                "Informe uma data final válida.",
+            );
+
+            return;
+        }
+
+        if (
+            promotionStartsOn >
+            promotionEndsOn
+        ) {
+            setFormError(
+                "A data final da promoção deve ser igual ou posterior à data inicial.",
+            );
+
+            return;
+        }
+
         try {
             await updatePromotion
                 .mutateAsync({
@@ -344,6 +546,10 @@ export function ServicePromotionDialog({
                         promotionLabel:
                             normalizedLabel ||
                             "Promoção",
+
+                        promotionStartsOn,
+
+                        promotionEndsOn,
                     },
                 });
 
@@ -360,7 +566,7 @@ export function ServicePromotionDialog({
         }
     }
 
-    async function handleRemovePromotion() {
+    async function handleEndPromotion() {
         setFormError(
             "",
         );
@@ -385,7 +591,7 @@ export function ServicePromotionDialog({
                 error instanceof
                     Error
                     ? error.message
-                    : "Não foi possível retirar a promoção.",
+                    : "Não foi possível encerrar a promoção.",
             );
         }
     }
@@ -424,7 +630,7 @@ export function ServicePromotionDialog({
                     handleOpenChange
                 }
             >
-                <DialogContent className="sm:max-w-md">
+                <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
                     <form
                         onSubmit={
                             handleSubmit
@@ -439,8 +645,8 @@ export function ServicePromotionDialog({
 
                             <DialogDescription>
                                 {promotionIsActive
-                                    ? "Altere o valor promocional ou retire este serviço da promoção."
-                                    : "Defina um valor promocional para este serviço."}
+                                    ? "Altere o valor, o período da promoção ou encerre antecipadamente."
+                                    : "Defina o valor e o período em que a promoção ficará disponível."}
                             </DialogDescription>
                         </DialogHeader>
 
@@ -550,19 +756,98 @@ export function ServicePromotionDialog({
                                     }
                                     onChange={(
                                         event,
-                                    ) =>
+                                    ) => {
                                         setPromotionLabel(
                                             event
                                                 .target
                                                 .value,
-                                        )
-                                    }
+                                        );
+
+                                        setFormError(
+                                            "",
+                                        );
+                                    }}
                                     placeholder="Promoção"
                                 />
 
                                 <p className="text-xs text-muted-foreground">
                                     Este texto será usado na badge apresentada para a cliente.
                                 </p>
+                            </div>
+
+                            {/* PERÍODO */}
+                            <div className="space-y-3">
+                                <div>
+                                    <p className="text-sm font-medium">
+                                        Período da promoção
+                                    </p>
+
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                        A promoção será válida inclusive na data inicial e na data final.
+                                    </p>
+                                </div>
+
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                    <div className="space-y-2">
+                                        <label
+                                            htmlFor={`promotion-start-${service.id}`}
+                                            className="text-sm font-medium"
+                                        >
+                                            Data inicial
+                                        </label>
+
+                                        <Input
+                                            id={`promotion-start-${service.id}`}
+                                            type="date"
+                                            value={
+                                                promotionStartsOn
+                                            }
+                                            disabled={
+                                                updatePromotion
+                                                    .isPending
+                                            }
+                                            onChange={(
+                                                event,
+                                            ) =>
+                                                handleStartDateChange(
+                                                    event
+                                                        .target
+                                                        .value,
+                                                )
+                                            }
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label
+                                            htmlFor={`promotion-end-${service.id}`}
+                                            className="text-sm font-medium"
+                                        >
+                                            Data final
+                                        </label>
+
+                                        <Input
+                                            id={`promotion-end-${service.id}`}
+                                            type="date"
+                                            value={
+                                                promotionEndsOn
+                                            }
+                                            disabled={
+                                                updatePromotion
+                                                    .isPending
+                                            }
+                                            onChange={(
+                                                event,
+                                            ) =>
+                                                handleEndDateChange(
+                                                    event
+                                                        .target
+                                                        .value,
+                                                )
+                                            }
+                                        />
+                                    </div>
+                                </div>
                             </div>
 
                             {/* PRÉVIA */}
@@ -574,7 +859,7 @@ export function ServicePromotionDialog({
                                     service
                                         .defaultPriceCents && (
                                     <div className="rounded-2xl border border-[#E6D7B4] bg-[#FFF9EA] p-4">
-                                        <div className="flex items-center justify-between gap-3">
+                                        <div className="flex items-start justify-between gap-3">
                                             <div>
                                                 <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.1em] text-[#82621F]">
                                                     <Flame className="size-3.5" />
@@ -597,6 +882,22 @@ export function ServicePromotionDialog({
                                                         }
                                                     </span>
                                                 </div>
+
+                                                {promotionPeriodIsComplete && (
+                                                    <p className="mt-3 flex items-center gap-1.5 text-xs font-medium text-[#80601B]">
+                                                        <CalendarDays className="size-3.5" />
+
+                                                        {formatDateOnly(
+                                                            promotionStartsOn,
+                                                        )}
+
+                                                        {" até "}
+
+                                                        {formatDateOnly(
+                                                            promotionEndsOn,
+                                                        )}
+                                                    </p>
+                                                )}
                                             </div>
 
                                             {discountPercentage !==
@@ -635,7 +936,7 @@ export function ServicePromotionDialog({
                                             .isPending
                                     }
                                     onClick={() =>
-                                        void handleRemovePromotion()
+                                        void handleEndPromotion()
                                     }
                                     className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
                                 >
@@ -646,7 +947,7 @@ export function ServicePromotionDialog({
                                         <Trash2 className="mr-2 size-4" />
                                     )}
 
-                                    Retirar promoção
+                                    Encerrar promoção
                                 </Button>
                             )}
 

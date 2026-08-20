@@ -145,7 +145,7 @@ export class ServiceService {
            * =================================
            *
            * Todo serviço nasce sem
-           * promoção.
+           * promoção configurada.
            */
           promotionActive:
             false,
@@ -154,6 +154,12 @@ export class ServiceService {
             null,
 
           promotionLabel:
+            null,
+
+          promotionStartsOn:
+            null,
+
+          promotionEndsOn:
             null,
 
           active:
@@ -234,8 +240,8 @@ export class ServiceService {
      * de fazer sentido.
      *
      * Por isso impedimos a alteração
-     * enquanto a promoção ativa ficaria
-     * maior ou igual ao novo preço.
+     * enquanto a promoção estiver
+     * administrativamente ativa.
      */
     if (
       input.defaultPriceCents !==
@@ -373,9 +379,12 @@ export class ServiceService {
    *
    * Permite ao ADMIN:
    *
-   * - colocar serviço em promoção;
+   * - configurar promoção;
    * - alterar promoção existente;
-   * - retirar promoção.
+   * - encerrar promoção antecipadamente.
+   *
+   * Encerrar antecipadamente NÃO
+   * apaga os dados configurados.
    */
   async setPromotion(
     salonId:
@@ -405,8 +414,20 @@ export class ServiceService {
 
     /*
      * =================================
-     * RETIRAR PROMOÇÃO
+     * ENCERRAR PROMOÇÃO
      * =================================
+     *
+     * Somente desativamos.
+     *
+     * Preservamos:
+     *
+     * - promotionPriceCents;
+     * - promotionLabel;
+     * - promotionStartsOn;
+     * - promotionEndsOn.
+     *
+     * Isso mantém a configuração e
+     * o histórico da promoção.
      */
     if (!input.active) {
       await this
@@ -417,12 +438,6 @@ export class ServiceService {
           {
             promotionActive:
               false,
-
-            promotionPriceCents:
-              null,
-
-            promotionLabel:
-              null,
 
             updatedAt:
               Timestamp.now(),
@@ -439,7 +454,7 @@ export class ServiceService {
 
       if (!updatedService) {
         throw new Error(
-          "Não foi possível localizar o serviço após retirar a promoção.",
+          "Não foi possível localizar o serviço após encerrar a promoção.",
         );
       }
 
@@ -450,12 +465,26 @@ export class ServiceService {
 
     /*
      * =================================
-     * ATIVAR PROMOÇÃO
+     * ATIVAR / ATUALIZAR PROMOÇÃO
      * =================================
      */
     const promotionPriceCents =
       input.promotionPriceCents;
 
+    const promotionStartsOn =
+      input.promotionStartsOn;
+
+    const promotionEndsOn =
+      input.promotionEndsOn;
+
+    /*
+     * Proteções defensivas.
+     *
+     * O schema já valida estes campos,
+     * mas o Service também protege sua
+     * regra de negócio caso futuramente
+     * seja chamado por outro fluxo.
+     */
     if (
       promotionPriceCents ===
         undefined ||
@@ -467,9 +496,50 @@ export class ServiceService {
       );
     }
 
+    if (
+      promotionStartsOn ===
+        undefined ||
+      promotionStartsOn ===
+        null
+    ) {
+      throw new Error(
+        "Informe a data inicial da promoção.",
+      );
+    }
+
+    if (
+      promotionEndsOn ===
+        undefined ||
+      promotionEndsOn ===
+        null
+    ) {
+      throw new Error(
+        "Informe a data final da promoção.",
+      );
+    }
+
+    if (
+      promotionStartsOn >
+      promotionEndsOn
+    ) {
+      throw new Error(
+        "A data final da promoção deve ser igual ou posterior à data inicial.",
+      );
+    }
+
     /*
-     * A promoção deve ser realmente
+     * A promoção precisa ser realmente
      * menor que o preço padrão.
+     *
+     * Esta regra continua valendo tanto
+     * para FIXED quanto STARTING_FROM.
+     *
+     * Em STARTING_FROM, esse valor
+     * promocional representa o valor
+     * inicial divulgado. A exigência
+     * de preço final na conclusão
+     * continuará sendo tratada no
+     * fluxo do atendimento.
      */
     if (
       promotionPriceCents >=
@@ -498,6 +568,10 @@ export class ServiceService {
           promotionPriceCents,
 
           promotionLabel,
+
+          promotionStartsOn,
+
+          promotionEndsOn,
 
           updatedAt:
             Timestamp.now(),

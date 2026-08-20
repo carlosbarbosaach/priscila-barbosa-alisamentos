@@ -43,17 +43,35 @@ export type ClientBookableService = {
    * =================================
    *
    * Estes campos permitem que o
-   * frontend mostre:
+   * frontend mostre os dados da
+   * promoção configurada para o
+   * serviço.
    *
-   * 🔥 PROMOÇÃO
+   * promotionActive:
+   * informa se a promoção está
+   * habilitada administrativamente.
    *
-   * De R$ 300
-   * Por R$ 250
+   * A validade real da promoção
+   * depende também das datas.
+   *
+   * promotionStartsOn:
+   * primeira data válida da promoção.
+   *
+   * promotionEndsOn:
+   * última data válida da promoção.
+   *
+   * Formato das datas:
+   *
+   * YYYY-MM-DD
+   *
+   * A data inicial e final são
+   * inclusivas.
    *
    * Mesmo quando a cliente possuir
    * um preço especial ainda menor,
-   * a informação da promoção continua
-   * disponível para apresentação.
+   * as informações da promoção podem
+   * continuar disponíveis para
+   * apresentação no frontend.
    */
   promotionActive:
     boolean;
@@ -62,6 +80,12 @@ export type ClientBookableService = {
     number | null;
 
   promotionLabel:
+    string | null;
+
+  promotionStartsOn:
+    string | null;
+
+  promotionEndsOn:
     string | null;
 
   /*

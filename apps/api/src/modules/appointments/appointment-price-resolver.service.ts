@@ -15,23 +15,27 @@ import {
   ServiceRepository,
 } from "../services/service.repository.js";
 
+import {
+  AppointmentDateTimeService,
+} from "./appointment-datetime.service.js";
+
 type ResolveAppointmentPriceInput = {
   salonId:
-    string;
+  string;
 
   clientId:
-    string;
+  string;
 
   serviceId:
-    string;
+  string;
 };
 
 export type ResolvedAppointmentPrice = {
   priceCents:
-    number;
+  number;
 
   priceSource:
-    AppointmentPriceSource;
+  AppointmentPriceSource;
 };
 
 export class AppointmentPriceResolverService {
@@ -44,7 +48,10 @@ export class AppointmentPriceResolverService {
 
     private readonly priceRepository =
       new ClientServicePriceRepository(),
-  ) {}
+
+    private readonly dateTimeService =
+      new AppointmentDateTimeService(),
+  ) { }
 
   async resolve(
     input:
@@ -121,7 +128,7 @@ export class AppointmentPriceResolverService {
       ) ||
       service
         .defaultPriceCents <
-        0
+      0
     ) {
       throw new Error(
         "O serviço possui preço padrão inválido.",
@@ -145,14 +152,70 @@ export class AppointmentPriceResolverService {
      * =================================
      * 3. PROMOÇÃO
      * =================================
+     *
+     * Uma promoção somente pode
+     * participar da resolução do
+     * preço quando:
+     *
+     * - estiver ativa;
+     * - possuir data inicial;
+     * - possuir data final;
+     * - hoje for >= data inicial;
+     * - hoje for <= data final.
+     *
+     * A data atual é calculada no
+     * timezone oficial do salão:
+     *
+     * America/Sao_Paulo.
+     *
+     * As duas extremidades são
+     * inclusivas.
      */
     const promotionActive =
       service
         .promotionActive ??
       false;
 
+    const promotionStartsOn =
+      service
+        .promotionStartsOn ??
+      null;
+
+    const promotionEndsOn =
+      service
+        .promotionEndsOn ??
+      null;
+
+    const todayDateKey =
+      this
+        .dateTimeService
+        .toSalonDateKey();
+
+    const promotionIsValidToday =
+      promotionActive &&
+      promotionStartsOn !==
+      null &&
+      promotionEndsOn !==
+      null &&
+      todayDateKey >=
+      promotionStartsOn &&
+      todayDateKey <=
+      promotionEndsOn;
+
+    /*
+     * Serviços antigos podem possuir
+     * promotionActive = true sem as
+     * novas datas.
+     *
+     * Nesse caso a promoção NÃO é
+     * aplicada.
+     *
+     * Isso evita conceder preço
+     * promocional fora de um período
+     * explicitamente configurado.
+     */
     if (
-      promotionActive
+      promotionIsValidToday
     ) {
       const promotionPriceCents =
         service
@@ -160,14 +223,14 @@ export class AppointmentPriceResolverService {
 
       if (
         promotionPriceCents ===
-          undefined ||
+        undefined ||
         promotionPriceCents ===
-          null ||
+        null ||
         !Number.isInteger(
           promotionPriceCents,
         ) ||
-        promotionPriceCents <
-          0
+        promotionPriceCents <=
+        0
       ) {
         throw new Error(
           "O serviço possui preço promocional inválido.",
@@ -228,7 +291,7 @@ export class AppointmentPriceResolverService {
         ) ||
         specialPrice
           .priceCents <
-          0
+        0
       ) {
         throw new Error(
           "O preço especial da cliente é inválido.",
@@ -260,6 +323,19 @@ export class AppointmentPriceResolverService {
        * ↓
        *
        * 220 PROMOTION
+       *
+       *
+       * EMPATE:
+       *
+       * promoção  250
+       * especial  250
+       *
+       * ↓
+       *
+       * 250 CLIENT_SPECIAL
+       *
+       * O <= é proposital para
+       * garantir essa prioridade.
        */
       if (
         specialPrice
@@ -278,7 +354,6 @@ export class AppointmentPriceResolverService {
 
     return {
       priceCents,
-
       priceSource,
     };
   }

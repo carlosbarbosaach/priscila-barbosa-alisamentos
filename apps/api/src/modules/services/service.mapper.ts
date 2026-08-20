@@ -46,13 +46,8 @@ export function mapServiceEntityToService(
      * PROMOÇÃO
      * =================================
      *
-     * Documento antigo:
-     *
-     * promotionActive = undefined
-     *
-     * ↓
-     *
-     * promoção desativada.
+     * Documentos antigos podem não
+     * possuir esses campos.
      */
     promotionActive:
       service.promotionActive ??
@@ -64,6 +59,14 @@ export function mapServiceEntityToService(
 
     promotionLabel:
       service.promotionLabel ??
+      null,
+
+    promotionStartsOn:
+      service.promotionStartsOn ??
+      null,
+
+    promotionEndsOn:
+      service.promotionEndsOn ??
       null,
 
     /*

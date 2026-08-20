@@ -6,6 +6,7 @@ import {
   SERVICE_PRICE_TYPES,
   type Appointment,
   type AppointmentStatus,
+  type ClientBookableService,
 } from "@priscila/shared";
 
 import {
@@ -15,8 +16,10 @@ import {
   CheckCircle2,
   CircleX,
   Clock3,
+  Flame,
   LoaderCircle,
   Sparkles,
+  Tag,
   TriangleAlert,
 } from "lucide-react";
 
@@ -27,8 +30,16 @@ import {
 } from "@/features/auth/hooks/useAuth";
 
 import {
+  AppointmentPromotionBadge,
+} from "@/features/appointments/components/AppointmentPromotionBadge";
+
+import {
   useClientAppointments,
 } from "@/features/appointments/hooks/useClientAppointments";
+
+import {
+  useClientBookableServices,
+} from "@/features/appointments/hooks/useClientBookableServices";
 
 /*
  * Fuso horário oficial do salão.
@@ -175,6 +186,45 @@ function formatPrice(
   );
 }
 
+function formatPromotionDate(
+  dateKey:
+    string,
+) {
+  const [
+    year,
+    month,
+    day,
+  ] =
+    dateKey.split(
+      "-",
+    );
+
+  if (
+    !year ||
+    !month ||
+    !day
+  ) {
+    return dateKey;
+  }
+
+  return `${day}/${month}/${year}`;
+}
+
+function hasActivePromotion(
+  service:
+    ClientBookableService,
+) {
+  return (
+    service.promotionActive &&
+    service.promotionPriceCents !==
+      null &&
+    service.promotionStartsOn !==
+      null &&
+    service.promotionEndsOn !==
+      null
+  );
+}
+
 function getStatusConfig(
   status:
     AppointmentStatus,
@@ -304,6 +354,31 @@ export default function ClientPage() {
   } =
     useClientAppointments();
 
+  /*
+   * =================================
+   * SERVIÇOS / PROMOÇÕES REAIS
+   * =================================
+   *
+   * Esse catálogo vem do backend.
+   *
+   * Portanto promotionActive já
+   * representa promoção válida HOJE,
+   * considerando America/Sao_Paulo.
+   */
+  const {
+    data:
+      bookableServices = [],
+
+    isLoading:
+      servicesLoading,
+  } =
+    useClientBookableServices();
+
+  const promotionalServices =
+    bookableServices.filter(
+      hasActivePromotion,
+    );
+
   const clientName =
     clientLink?.client?.name ??
     appUser?.displayName ??
@@ -344,25 +419,10 @@ export default function ClientPage() {
       isConfirmedAppointment,
     );
 
-  /*
-   * upcoming já deve vir ordenado
-   * cronologicamente.
-   *
-   * O primeiro confirmado será o
-   * próximo horário efetivamente
-   * confirmado pelo salão.
-   */
   const nextConfirmedAppointment =
     confirmedAppointments[0] ??
     null;
 
-  /*
-   * history vem do mais recente
-   * para o mais antigo.
-   *
-   * Procuramos a recusa mais recente
-   * para avisar a cliente logo na Home.
-   */
   const recentRejectedAppointment =
     history.find(
       isRejectedAppointment,
@@ -382,14 +442,26 @@ export default function ClientPage() {
       ?.icon;
 
   /*
-   * Preço mostrado no próximo
-   * agendamento confirmado.
+   * =================================
+   * PREÇO DO PRÓXIMO AGENDAMENTO
+   * =================================
+   *
+   * Aqui usamos o snapshot salvo
+   * no próprio agendamento.
+   *
+   * Não dependemos da promoção atual.
    */
   const hasSpecialPrice =
     nextConfirmedAppointment
       ?.priceSource ===
     APPOINTMENT_PRICE_SOURCE
       .CLIENT_SPECIAL;
+
+  const hasPromotionPrice =
+    nextConfirmedAppointment
+      ?.priceSource ===
+    APPOINTMENT_PRICE_SOURCE
+      .PROMOTION;
 
   const isStartingFromPrice =
     nextConfirmedAppointment
@@ -466,6 +538,208 @@ export default function ClientPage() {
       </section>
 
       {/* ============================== */}
+      {/* PROMOÇÕES ATUAIS */}
+      {/* ============================== */}
+
+      {servicesLoading && (
+        <section>
+          <div className="mb-4">
+            <p className="text-sm font-medium text-[#7A8075]">
+              Oportunidades
+            </p>
+
+            <h2 className="mt-1 text-xl font-bold text-[#263620]">
+              Promoções disponíveis
+            </h2>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="h-[190px] animate-pulse rounded-3xl border border-[#E9DAB8] bg-white" />
+
+            <div className="hidden h-[190px] animate-pulse rounded-3xl border border-[#E9DAB8] bg-white sm:block" />
+          </div>
+        </section>
+      )}
+
+      {!servicesLoading &&
+        promotionalServices.length >
+          0 && (
+          <section>
+            <div className="mb-4 flex items-end justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-[#7A8075]">
+                  Oportunidades
+                </p>
+
+                <h2 className="mt-1 text-xl font-bold text-[#263620]">
+                  Promoções disponíveis
+                </h2>
+
+                <p className="mt-1 text-sm text-[#71776D]">
+                  Aproveite os valores promocionais disponíveis no momento.
+                </p>
+              </div>
+
+              <Link
+                href="/cliente/agendar"
+                className="hidden items-center gap-1 text-sm font-semibold text-[#304229] hover:underline sm:flex"
+              >
+                Agendar
+
+                <ArrowRight className="size-4" />
+              </Link>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {promotionalServices.map(
+                (
+                  service,
+                ) => {
+                  const promotionPrice =
+                    service
+                      .promotionPriceCents!;
+
+                  const specialPriceWins =
+                    service
+                      .priceSource ===
+                      APPOINTMENT_PRICE_SOURCE
+                        .CLIENT_SPECIAL &&
+                    service
+                      .priceCents <
+                      promotionPrice;
+
+                  const startingFrom =
+                    service
+                      .priceType ===
+                      SERVICE_PRICE_TYPES
+                        .STARTING_FROM;
+
+                  return (
+                    <article
+                      key={
+                        service.id
+                      }
+                      className="overflow-hidden rounded-3xl border border-[#E9DAB8] bg-[#FFFBF1] shadow-sm"
+                    >
+                      <div className="p-5">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-[#F4E4B9] text-[#755819]">
+                            <Flame className="size-5" />
+                          </div>
+
+                          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#E9D39E] bg-[#FFF7DF] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[#755819]">
+                            <Flame className="size-3" />
+
+                            {service
+                              .promotionLabel ??
+                              "Promoção"}
+                          </span>
+                        </div>
+
+                        <p className="mt-4 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#998765]">
+                          Serviço
+                        </p>
+
+                        <h3 className="mt-1 text-lg font-bold text-[#42371F]">
+                          {
+                            service.name
+                          }
+                        </h3>
+
+                        <div className="mt-4">
+                          <p className="text-xs text-[#93866D]">
+                            {startingFrom
+                              ? "Valor inicial normal"
+                              : "Preço normal"}
+                          </p>
+
+                          <p className="mt-1 text-sm font-medium text-[#968A73] line-through">
+                            {startingFrom &&
+                              "A partir de "}
+
+                            {formatPrice(
+                              service
+                                .defaultPriceCents,
+                            )}
+                          </p>
+
+                          <div className="mt-2">
+                            {startingFrom && (
+                              <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#80601B]">
+                                A partir de
+                              </p>
+                            )}
+
+                            <p className="text-2xl font-bold tracking-tight text-[#6B5016]">
+                              {formatPrice(
+                                promotionPrice,
+                              )}
+                            </p>
+                          </div>
+                        </div>
+
+                        {specialPriceWins && (
+                          <div className="mt-4 rounded-2xl border border-[#DFD2AE] bg-white/70 p-3">
+                            <div className="flex items-center gap-2">
+                              <Tag className="size-4 text-[#8A6A2F]" />
+
+                              <div>
+                                <p className="text-[10px] font-bold uppercase tracking-wide text-[#8A6A2F]">
+                                  Seu preço é ainda menor
+                                </p>
+
+                                <p className="mt-0.5 text-base font-bold text-[#304229]">
+                                  {formatPrice(
+                                    service
+                                      .priceCents,
+                                  )}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="mt-4 border-t border-[#E9DAB8] pt-4">
+                          <div className="flex items-center gap-2 text-xs font-medium text-[#80601B]">
+                            <CalendarDays className="size-3.5 shrink-0" />
+
+                            <span>
+                              Válida de{" "}
+                              {formatPromotionDate(
+                                service
+                                  .promotionStartsOn!,
+                              )}
+
+                              {" até "}
+
+                              {formatPromotionDate(
+                                service
+                                  .promotionEndsOn!,
+                              )}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="border-t border-[#E9DAB8] bg-white/50 p-4">
+                        <Link
+                          href="/cliente/agendar"
+                          className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#304229] px-4 text-sm font-semibold text-white transition hover:bg-[#24351F]"
+                        >
+                          <CalendarPlus className="size-4" />
+
+                          Agendar este serviço
+                        </Link>
+                      </div>
+                    </article>
+                  );
+                },
+              )}
+            </div>
+          </section>
+        )}
+
+      {/* ============================== */}
       {/* CARREGANDO */}
       {/* ============================== */}
 
@@ -536,15 +810,6 @@ export default function ClientPage() {
                 </Link>
               </div>
 
-              {/*
-               * MOBILE:
-               *
-               * 2 colunas.
-               *
-               * TABLET/DESKTOP:
-               *
-               * continua compacto.
-               */}
               <div className="grid grid-cols-2 gap-3 sm:gap-4">
                 {/* AGUARDANDO */}
                 <Link
@@ -906,11 +1171,24 @@ export default function ClientPage() {
                             )}
                           </p>
 
-                          {hasSpecialPrice && (
-                            <p className="mt-1 text-[11px] font-semibold text-[#8A6A2F]">
-                              Seu preço
-                            </p>
-                          )}
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {hasPromotionPrice && (
+                              <AppointmentPromotionBadge
+                                priceSource={
+                                  nextConfirmedAppointment
+                                    .priceSource
+                                }
+                              />
+                            )}
+
+                            {hasSpecialPrice && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-[#F5EBD2] px-2.5 py-1 text-[11px] font-semibold text-[#8A6A2F]">
+                                <Tag className="size-3" />
+
+                                Seu preço
+                              </span>
+                            )}
+                          </div>
 
                           <Link
                             href="/cliente/agendamentos"

@@ -44,19 +44,28 @@ export type UpdateServiceInput = {
  * PROMOÇÃO
  * =================================
  *
- * Ativar:
+ * ATIVAR / ALTERAR:
  *
  * {
  *   active: true,
  *   promotionPriceCents: 25000,
- *   promotionLabel: "Promoção"
+ *   promotionLabel: "Promoção de setembro",
+ *   promotionStartsOn: "2026-09-01",
+ *   promotionEndsOn: "2026-09-30"
  * }
  *
- * Retirar:
+ * ENCERRAR ANTECIPADAMENTE:
  *
  * {
  *   active: false
  * }
+ *
+ * Ao encerrar, o backend mantém:
+ *
+ * - promotionPriceCents;
+ * - promotionLabel;
+ * - promotionStartsOn;
+ * - promotionEndsOn.
  */
 export type UpdateServicePromotionInput =
     | {
@@ -68,6 +77,12 @@ export type UpdateServicePromotionInput =
 
           promotionLabel?:
               string | null;
+
+          promotionStartsOn:
+              string;
+
+          promotionEndsOn:
+              string;
       }
     | {
           active:
@@ -156,7 +171,7 @@ export async function updateServiceStatus(
 
 /*
  * =================================
- * ATIVAR / ALTERAR / RETIRAR PROMOÇÃO
+ * ATIVAR / ALTERAR / ENCERRAR PROMOÇÃO
  * =================================
  */
 export async function updateServicePromotion(

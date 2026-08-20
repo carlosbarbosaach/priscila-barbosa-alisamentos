@@ -3,9 +3,122 @@ import {
 } from "./appointment.config.js";
 
 export class AppointmentDateTimeService {
+
+    /*
+     * =================================
+     * DATA ATUAL DO SALÃO
+     * =================================
+     *
+     * Converte um instante real para
+     * uma dateKey no timezone oficial
+     * do salão.
+     *
+     * Exemplo:
+     *
+     * America/Sao_Paulo
+     *
+     * ↓
+     *
+     * 2026-09-01
+     *
+     * O parâmetro date é opcional para
+     * permitir testes determinísticos.
+     *
+     * Em produção:
+     *
+     * toSalonDateKey()
+     *
+     * Em testes:
+     *
+     * toSalonDateKey(
+     *   new Date(...)
+     * )
+     */
+    toSalonDateKey(
+        date:
+            Date =
+            new Date(),
+    ): string {
+        if (
+            Number.isNaN(
+                date.getTime(),
+            )
+        ) {
+            throw new Error(
+                "Data inválida.",
+            );
+        }
+
+        const formatter =
+            new Intl.DateTimeFormat(
+                "en-US",
+                {
+                    timeZone:
+                        APPOINTMENT_CONFIG
+                            .timeZone,
+
+                    year:
+                        "numeric",
+
+                    month:
+                        "2-digit",
+
+                    day:
+                        "2-digit",
+                },
+            );
+
+        const parts =
+            formatter.formatToParts(
+                date,
+            );
+
+        const getPart = (
+            type:
+                Intl.DateTimeFormatPartTypes,
+        ): string => {
+            const part =
+                parts.find(
+                    (
+                        item,
+                    ) =>
+                        item.type ===
+                        type,
+                );
+
+            if (!part) {
+                throw new Error(
+                    "Não foi possível interpretar a data no fuso horário do salão.",
+                );
+            }
+
+            return part.value;
+        };
+
+        const year =
+            getPart(
+                "year",
+            );
+
+        const month =
+            getPart(
+                "month",
+            );
+
+        const day =
+            getPart(
+                "day",
+            );
+
+        return `${year}-${month}-${day}`;
+    }
+
     localDateTimeToDate(
-        dateKey: string,
-        time: string,
+        dateKey:
+            string,
+
+        time:
+            string,
     ): Date {
         const dateMatch =
             /^(\d{4})-(\d{2})-(\d{2})$/.exec(
@@ -121,12 +234,16 @@ export class AppointmentDateTimeService {
             );
 
         const getPart = (
-            type: Intl.DateTimeFormatPartTypes,
+            type:
+                Intl.DateTimeFormatPartTypes,
         ): number => {
             const part =
                 parts.find(
-                    (item) =>
-                        item.type === type,
+                    (
+                        item,
+                    ) =>
+                        item.type ===
+                        type,
                 );
 
             if (!part) {
@@ -142,12 +259,29 @@ export class AppointmentDateTimeService {
 
         const representedAsUtc =
             Date.UTC(
-                getPart("year"),
-                getPart("month") - 1,
-                getPart("day"),
-                getPart("hour"),
-                getPart("minute"),
-                getPart("second"),
+                getPart(
+                    "year",
+                ),
+
+                getPart(
+                    "month",
+                ) - 1,
+
+                getPart(
+                    "day",
+                ),
+
+                getPart(
+                    "hour",
+                ),
+
+                getPart(
+                    "minute",
+                ),
+
+                getPart(
+                    "second",
+                ),
             );
 
         const offsetMilliseconds =
@@ -178,32 +312,46 @@ export class AppointmentDateTimeService {
             );
 
         const validation = (
-            type: Intl.DateTimeFormatPartTypes,
+            type:
+                Intl.DateTimeFormatPartTypes,
         ) => {
             const part =
                 validationParts.find(
-                    (item) =>
-                        item.type === type,
+                    (
+                        item,
+                    ) =>
+                        item.type ===
+                        type,
                 );
 
             return part
                 ? Number(
-                    part.value,
-                )
+                      part.value,
+                  )
                 : null;
         };
 
         const valid =
-            validation("year") ===
-            year &&
-            validation("month") ===
-            month &&
-            validation("day") ===
-            day &&
-            validation("hour") ===
-            hours &&
-            validation("minute") ===
-            minutes;
+            validation(
+                "year",
+            ) ===
+                year &&
+            validation(
+                "month",
+            ) ===
+                month &&
+            validation(
+                "day",
+            ) ===
+                day &&
+            validation(
+                "hour",
+            ) ===
+                hours &&
+            validation(
+                "minute",
+            ) ===
+                minutes;
 
         if (!valid) {
             throw new Error(
@@ -215,8 +363,11 @@ export class AppointmentDateTimeService {
     }
 
     addMinutes(
-        date: Date,
-        minutes: number,
+        date:
+            Date,
+
+        minutes:
+            number,
     ): Date {
         if (
             !Number.isInteger(
@@ -232,8 +383,8 @@ export class AppointmentDateTimeService {
         return new Date(
             date.getTime() +
             minutes *
-            60 *
-            1000,
+                60 *
+                1000,
         );
     }
 }

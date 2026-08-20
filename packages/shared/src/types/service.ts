@@ -74,7 +74,11 @@ export type Service = {
    *
    * promotionActive:
    * informa se a promoção está
-   * atualmente ativa.
+   * habilitada administrativamente.
+   *
+   * Isso não significa, sozinho,
+   * que ela esteja válida para a
+   * data atual.
    *
    * promotionPriceCents:
    * valor promocional do serviço.
@@ -82,17 +86,38 @@ export type Service = {
    * promotionLabel:
    * texto exibido na badge.
    *
+   * promotionStartsOn:
+   * primeira data em que a promoção
+   * pode ser aplicada.
+   *
+   * promotionEndsOn:
+   * última data em que a promoção
+   * pode ser aplicada.
+   *
+   * As datas utilizam o formato:
+   *
+   * YYYY-MM-DD
+   *
    * Exemplo:
    *
    * promotionActive = true
    * promotionPriceCents = 25000
-   * promotionLabel = "Promoção"
+   * promotionLabel = "Promoção de setembro"
+   * promotionStartsOn = "2026-09-01"
+   * promotionEndsOn = "2026-09-30"
    *
-   * Normal:
-   * R$ 300,00
+   * A validade por data será calculada
+   * considerando America/Sao_Paulo.
    *
-   * Promoção:
-   * R$ 250,00
+   * A data inicial e a data final
+   * são inclusivas.
+   *
+   * Ao encerrar antecipadamente uma
+   * promoção, somente promotionActive
+   * será alterado para false.
+   *
+   * Os demais dados permanecem salvos
+   * para histórico/configuração.
    */
   promotionActive:
     boolean;
@@ -101,6 +126,12 @@ export type Service = {
     number | null;
 
   promotionLabel:
+    string | null;
+
+  promotionStartsOn:
+    string | null;
+
+  promotionEndsOn:
     string | null;
 
   /*

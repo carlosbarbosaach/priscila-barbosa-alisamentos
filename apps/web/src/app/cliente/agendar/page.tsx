@@ -71,6 +71,30 @@ function formatPrice(
     );
 }
 
+function formatPromotionDate(
+  dateKey:
+    string,
+) {
+  const [
+    year,
+    month,
+    day,
+  ] =
+    dateKey.split(
+      "-",
+    );
+
+  if (
+    !year ||
+    !month ||
+    !day
+  ) {
+    return dateKey;
+  }
+
+  return `${day}/${month}/${year}`;
+}
+
 /*
  * =================================
  * PREÇOS
@@ -106,6 +130,10 @@ function hasActivePromotion(
   return (
     service.promotionActive &&
     service.promotionPriceCents !==
+    null &&
+    service.promotionStartsOn !==
+    null &&
+    service.promotionEndsOn !==
     null
   );
 }
@@ -740,6 +768,29 @@ export default function ClientBookingPage() {
                     )}
                   </div>
 
+                  {createdServiceHasPromotion &&
+                    selectedService
+                      ?.promotionStartsOn &&
+                    selectedService
+                      .promotionEndsOn && (
+                      <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-[#80601B]">
+                        <CalendarDays className="size-3.5 shrink-0" />
+
+                        Válida de{" "}
+                        {formatPromotionDate(
+                          selectedService
+                            .promotionStartsOn,
+                        )}
+
+                        {" até "}
+
+                        {formatPromotionDate(
+                          selectedService
+                            .promotionEndsOn,
+                        )}
+                      </p>
+                    )}
+
                   {createdServiceUsesPromotion &&
                     createdServiceIsStartingFrom && (
                       <p className="mt-2 text-xs leading-5 text-[#71776D]">
@@ -1098,13 +1149,33 @@ export default function ClientBookingPage() {
                       </h3>
 
                       {promotionActive && (
-                        <div className="mt-3">
+                        <div className="mt-3 space-y-2">
                           <span className="inline-flex items-center gap-1.5 rounded-full border border-[#E9D39E] bg-[#FFF7DF] px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-[#755819]">
                             <Flame className="size-3.5" />
 
                             {service.promotionLabel ??
                               "Promoção"}
                           </span>
+
+                          {service.promotionStartsOn &&
+                            service.promotionEndsOn && (
+                              <p className="flex items-center gap-1.5 text-xs font-medium text-[#80601B]">
+                                <CalendarDays className="size-3.5 shrink-0" />
+
+                                Válida de{" "}
+                                {formatPromotionDate(
+                                  service
+                                    .promotionStartsOn,
+                                )}
+
+                                {" até "}
+
+                                {formatPromotionDate(
+                                  service
+                                    .promotionEndsOn,
+                                )}
+                              </p>
+                            )}
                         </div>
                       )}
 
@@ -1596,6 +1667,31 @@ export default function ClientBookingPage() {
                         </span>
                       )}
                   </div>
+
+                  {hasActivePromotion(
+                    selectedService,
+                  ) &&
+                    selectedService
+                      .promotionStartsOn &&
+                    selectedService
+                      .promotionEndsOn && (
+                      <p className="mt-3 flex items-center gap-1.5 text-xs font-medium leading-5 text-[#80601B]">
+                        <CalendarDays className="size-3.5 shrink-0" />
+
+                        Válida de{" "}
+                        {formatPromotionDate(
+                          selectedService
+                            .promotionStartsOn,
+                        )}
+
+                        {" até "}
+
+                        {formatPromotionDate(
+                          selectedService
+                            .promotionEndsOn,
+                        )}
+                      </p>
+                    )}
 
                   {!isClientSpecialPrice(
                     selectedService,

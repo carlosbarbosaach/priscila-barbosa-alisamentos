@@ -1,450 +1,515 @@
 import {
-  APPOINTMENT_PRICE_SOURCE,
-  SERVICE_PRICE_TYPES,
-  type ClientBookableService,
+    APPOINTMENT_PRICE_SOURCE,
+    SERVICE_PRICE_TYPES,
+    type ClientBookableService,
 } from "@priscila/shared";
 
 import {
-  ClientRepository,
+    ClientRepository,
 } from "../clients/client.repository.js";
 
 import {
-  ClientServicePriceRepository,
+    ClientServicePriceRepository,
 } from "../client-service-prices/client-service-price.repository.js";
 
 import {
-  ServiceRepository,
+    ServiceRepository,
 } from "../services/service.repository.js";
 
-type GetClientServiceCatalogInput = {
-  salonId:
-  string;
+import {
+    AppointmentDateTimeService,
+} from "./appointment-datetime.service.js";
 
-  clientId:
-  string;
+type GetClientServiceCatalogInput = {
+    salonId:
+        string;
+
+    clientId:
+        string;
 };
 
 export class ClientServiceCatalogService {
-  constructor(
-    private readonly clientRepository =
-      new ClientRepository(),
+    constructor(
+        private readonly clientRepository =
+            new ClientRepository(),
 
-    private readonly serviceRepository =
-      new ServiceRepository(),
+        private readonly serviceRepository =
+            new ServiceRepository(),
 
-    private readonly priceRepository =
-      new ClientServicePriceRepository(),
-  ) { }
+        private readonly priceRepository =
+            new ClientServicePriceRepository(),
 
-  async getCatalog(
-    input:
-      GetClientServiceCatalogInput,
-  ): Promise<
-    ClientBookableService[]
-  > {
-    const {
-      salonId,
-      clientId,
-    } =
-      input;
+        private readonly dateTimeService =
+            new AppointmentDateTimeService(),
+    ) {}
 
-    if (
-      !salonId ||
-      salonId
-        .trim()
-        .length ===
-      0
-    ) {
-      throw new Error(
-        "Salão não informado.",
-      );
-    }
-
-    /*
-     * =================================
-     * 1. CLIENTE
-     * =================================
-     */
-    const client =
-      await this
-        .clientRepository
-        .findById(
-          salonId,
-          clientId,
-        );
-
-    if (!client) {
-      throw new Error(
-        "Cliente não encontrada.",
-      );
-    }
-
-    if (!client.active) {
-      throw new Error(
-        "Cliente inativa.",
-      );
-    }
-
-    /*
-     * =================================
-     * 2. DADOS NECESSÁRIOS
-     * =================================
-     *
-     * Mantemos somente duas consultas:
-     *
-     * - serviços do salão;
-     * - preços especiais da cliente.
-     */
-    const [
-      services,
-      specialPrices,
-    ] =
-      await Promise.all([
-        this
-          .serviceRepository
-          .findAllBySalon(
-            salonId,
-          ),
-
-        this
-          .priceRepository
-          .findAllByClient(
+    async getCatalog(
+        input:
+            GetClientServiceCatalogInput,
+    ): Promise<
+        ClientBookableService[]
+    > {
+        const {
             salonId,
             clientId,
-          ),
-      ]);
+        } =
+            input;
 
-    /*
-     * serviceId
-     * ↓
-     * preço especial ativo.
-     */
-    const specialPriceByServiceId =
-      new Map(
-        specialPrices
-          .filter(
-            (
-              price,
-            ) =>
-              price.active,
-          )
-          .map(
-            (
-              price,
-            ) => [
-                price.serviceId,
-                price,
-              ],
-          ),
-      );
-
-    /*
-     * A CLIENT somente enxerga
-     * serviços ativos.
-     */
-    const activeServices =
-      services.filter(
-        (
-          service,
-        ) =>
-          service.active,
-      );
-
-    return activeServices.map(
-      (
-        service,
-      ) => {
-        /*
-         * =================================
-         * PREÇO PADRÃO
-         * =================================
-         */
         if (
-          !Number.isInteger(
-            service
-              .defaultPriceCents,
-          ) ||
-          service
-            .defaultPriceCents <
-          0
+            !salonId ||
+            salonId
+                .trim()
+                .length ===
+                0
         ) {
-          throw new Error(
-            `O serviço "${service.name}" possui preço inválido.`,
-          );
+            throw new Error(
+                "Salão não informado.",
+            );
         }
 
         /*
          * =================================
-         * DURAÇÃO
+         * 1. CLIENTE
          * =================================
          */
-        if (
-          !Number.isInteger(
-            service
-              .durationMinutes,
-          ) ||
-          service
-            .durationMinutes <=
-          0
-        ) {
-          throw new Error(
-            `O serviço "${service.name}" possui duração inválida.`,
-          );
+        const client =
+            await this
+                .clientRepository
+                .findById(
+                    salonId,
+                    clientId,
+                );
+
+        if (!client) {
+            throw new Error(
+                "Cliente não encontrada.",
+            );
+        }
+
+        if (!client.active) {
+            throw new Error(
+                "Cliente inativa.",
+            );
         }
 
         /*
          * =================================
-         * TIPO DE PREÇO
+         * 2. DADOS NECESSÁRIOS
          * =================================
          *
-         * Serviço antigo sem priceType
-         * continua sendo FIXED.
+         * Mantemos somente duas consultas:
+         *
+         * - serviços do salão;
+         * - preços especiais da cliente.
          */
-        const priceType =
-          service.priceType ??
-          SERVICE_PRICE_TYPES
-            .FIXED;
+        const [
+            services,
+            specialPrices,
+        ] =
+            await Promise.all([
+                this
+                    .serviceRepository
+                    .findAllBySalon(
+                        salonId,
+                    ),
+
+                this
+                    .priceRepository
+                    .findAllByClient(
+                        salonId,
+                        clientId,
+                    ),
+            ]);
 
         /*
-         * =================================
-         * PROMOÇÃO
-         * =================================
-         *
-         * Serviços antigos:
-         *
-         * promotionActive
-         * undefined
-         *
+         * serviceId
          * ↓
-         *
-         * false
+         * preço especial ativo.
          */
-        const promotionActive =
-          service
-            .promotionActive ??
-          false;
-
-        let promotionPriceCents:
-          number | null =
-          null;
-
-        let promotionLabel:
-          string | null =
-          null;
-
-        if (
-          promotionActive
-        ) {
-          const rawPromotionPrice =
-            service
-              .promotionPriceCents;
-
-          /*
-           * Uma promoção ativa precisa
-           * possuir um preço válido.
-           */
-          if (
-            rawPromotionPrice ===
-            undefined ||
-            rawPromotionPrice ===
-            null ||
-            !Number.isInteger(
-              rawPromotionPrice,
-            ) ||
-            rawPromotionPrice <
-            0
-          ) {
-            throw new Error(
-              `A promoção do serviço "${service.name}" possui preço inválido.`,
-            );
-          }
-
-          /*
-           * Proteção contra inconsistência
-           * direta no Firestore.
-           *
-           * A promoção precisa ser
-           * realmente menor que o preço
-           * normal.
-           */
-          if (
-            rawPromotionPrice >=
-            service
-              .defaultPriceCents
-          ) {
-            throw new Error(
-              `A promoção do serviço "${service.name}" precisa ser menor que o preço normal.`,
-            );
-          }
-
-          promotionPriceCents =
-            rawPromotionPrice;
-
-          promotionLabel =
-            service
-              .promotionLabel
-              ?.trim() ||
-            "Promoção";
-        }
-
-        /*
-         * =================================
-         * PREÇO ESPECIAL
-         * =================================
-         */
-        const specialPrice =
-          specialPriceByServiceId
-            .get(
-              service.id,
+        const specialPriceByServiceId =
+            new Map(
+                specialPrices
+                    .filter(
+                        (
+                            price,
+                        ) =>
+                            price.active,
+                    )
+                    .map(
+                        (
+                            price,
+                        ) => [
+                            price.serviceId,
+                            price,
+                        ],
+                    ),
             );
 
-        if (
-          specialPrice
-        ) {
-          if (
-            !Number.isInteger(
-              specialPrice
-                .priceCents,
-            ) ||
-            specialPrice
-              .priceCents <
-            0
-          ) {
-            throw new Error(
-              `O preço especial do serviço "${service.name}" é inválido.`,
+        /*
+         * A CLIENT somente enxerga
+         * serviços ativos.
+         */
+        const activeServices =
+            services.filter(
+                (
+                    service,
+                ) =>
+                    service.active,
             );
-          }
-        }
-
-        /*
- * =================================
- * RESOLUÇÃO DO MELHOR PREÇO
- * =================================
- *
- * Começamos sempre pelo preço
- * normal.
- */
-        let priceCents =
-          service
-            .defaultPriceCents;
-
-        let priceSource:
-          ClientBookableService["priceSource"] =
-          APPOINTMENT_PRICE_SOURCE
-            .SERVICE_DEFAULT;
-
-        /*
-         * Se existir promoção válida
-         * e ela for menor, usamos promoção.
-         */
-        if (
-          promotionActive &&
-          promotionPriceCents !==
-          null &&
-          promotionPriceCents <
-          priceCents
-        ) {
-          priceCents =
-            promotionPriceCents;
-
-          priceSource =
-            APPOINTMENT_PRICE_SOURCE
-              .PROMOTION;
-        }
 
         /*
          * =================================
-         * PREÇO ESPECIAL DA CLIENTE
-         * =================================
-         */
-        if (
-          specialPrice &&
-          specialPrice
-            .priceCents <=
-          priceCents
-        ) {
-          priceCents =
-            specialPrice
-              .priceCents;
-
-          priceSource =
-            APPOINTMENT_PRICE_SOURCE
-              .CLIENT_SPECIAL;
-        }
-
-        /*
-         * =================================
-         * PREÇO ESPECIAL DA CLIENTE
+         * DATA ATUAL DO SALÃO
          * =================================
          *
-         * O menor preço vence.
+         * Calculamos uma única vez para
+         * todo o catálogo.
          *
-         * Utilizamos <= propositalmente.
+         * Formato:
          *
-         * Se promoção e preço especial
-         * forem iguais, mantemos
-         * CLIENT_SPECIAL.
+         * YYYY-MM-DD
          *
-         * Isso preserva a regra atual:
-         * preço especial é um valor
-         * personalizado e fechado para
-         * aquela cliente.
+         * Timezone:
+         *
+         * America/Sao_Paulo
          */
-        if (
-          specialPrice &&
-          specialPrice
-            .priceCents <=
-          priceCents
-        ) {
-          priceCents =
-            specialPrice
-              .priceCents;
+        const todayDateKey =
+            this
+                .dateTimeService
+                .toSalonDateKey();
 
-          priceSource =
-            APPOINTMENT_PRICE_SOURCE
-              .CLIENT_SPECIAL;
-        }
+        return activeServices.map(
+            (
+                service,
+            ) => {
+                /*
+                 * =================================
+                 * PREÇO PADRÃO
+                 * =================================
+                 */
+                if (
+                    !Number.isInteger(
+                        service
+                            .defaultPriceCents,
+                    ) ||
+                    service
+                        .defaultPriceCents <
+                        0
+                ) {
+                    throw new Error(
+                        `O serviço "${service.name}" possui preço inválido.`,
+                    );
+                }
 
-        /*
-         * =================================
-         * CATÁLOGO DA CLIENTE
-         * =================================
-         */
-        return {
-          id:
-            service.id,
+                /*
+                 * =================================
+                 * DURAÇÃO
+                 * =================================
+                 */
+                if (
+                    !Number.isInteger(
+                        service
+                            .durationMinutes,
+                    ) ||
+                    service
+                        .durationMinutes <=
+                        0
+                ) {
+                    throw new Error(
+                        `O serviço "${service.name}" possui duração inválida.`,
+                    );
+                }
 
-          name:
-            service.name,
+                /*
+                 * =================================
+                 * TIPO DE PREÇO
+                 * =================================
+                 *
+                 * Serviço antigo sem priceType
+                 * continua sendo FIXED.
+                 */
+                const priceType =
+                    service.priceType ??
+                    SERVICE_PRICE_TYPES
+                        .FIXED;
 
-          description:
-            service
-              .description,
+                /*
+                 * =================================
+                 * PROMOÇÃO
+                 * =================================
+                 *
+                 * Para a CLIENTE, promotionActive
+                 * representa uma promoção
+                 * efetivamente válida AGORA.
+                 *
+                 * Não basta estar habilitada
+                 * administrativamente.
+                 *
+                 * É necessário:
+                 *
+                 * promotionActive === true
+                 *
+                 * E
+                 *
+                 * hoje >= promotionStartsOn
+                 *
+                 * E
+                 *
+                 * hoje <= promotionEndsOn
+                 */
+                const promotionConfiguredAsActive =
+                    service
+                        .promotionActive ??
+                    false;
 
-          category:
-            service.category,
+                const configuredPromotionStartsOn =
+                    service
+                        .promotionStartsOn ??
+                    null;
 
-          durationMinutes:
-            service
-              .durationMinutes,
+                const configuredPromotionEndsOn =
+                    service
+                        .promotionEndsOn ??
+                    null;
 
-          defaultPriceCents:
-            service
-              .defaultPriceCents,
+                const promotionIsValidToday =
+                    promotionConfiguredAsActive &&
+                    configuredPromotionStartsOn !==
+                        null &&
+                    configuredPromotionEndsOn !==
+                        null &&
+                    todayDateKey >=
+                        configuredPromotionStartsOn &&
+                    todayDateKey <=
+                        configuredPromotionEndsOn;
 
-          priceType,
+                /*
+                 * Os campos abaixo são os dados
+                 * promocionais efetivamente
+                 * apresentados à CLIENTE.
+                 *
+                 * Promoção futura, expirada ou
+                 * encerrada não será apresentada
+                 * como promoção ativa.
+                 */
+                const promotionActive =
+                    promotionIsValidToday;
 
-          promotionActive,
+                let promotionPriceCents:
+                    number | null =
+                    null;
 
-          promotionPriceCents,
+                let promotionLabel:
+                    string | null =
+                    null;
 
-          promotionLabel,
+                let promotionStartsOn:
+                    string | null =
+                    null;
 
-          priceCents,
+                let promotionEndsOn:
+                    string | null =
+                    null;
 
-          priceSource,
-        };
-      },
-    );
-  }
+                if (
+                    promotionIsValidToday
+                ) {
+                    const rawPromotionPrice =
+                        service
+                            .promotionPriceCents;
+
+                    /*
+                     * Uma promoção válida precisa
+                     * possuir um preço válido.
+                     */
+                    if (
+                        rawPromotionPrice ===
+                            undefined ||
+                        rawPromotionPrice ===
+                            null ||
+                        !Number.isInteger(
+                            rawPromotionPrice,
+                        ) ||
+                        rawPromotionPrice <=
+                            0
+                    ) {
+                        throw new Error(
+                            `A promoção do serviço "${service.name}" possui preço inválido.`,
+                        );
+                    }
+
+                    /*
+                     * Proteção contra inconsistência
+                     * direta no Firestore.
+                     *
+                     * A promoção precisa ser
+                     * realmente menor que o preço
+                     * normal.
+                     */
+                    if (
+                        rawPromotionPrice >=
+                        service
+                            .defaultPriceCents
+                    ) {
+                        throw new Error(
+                            `A promoção do serviço "${service.name}" precisa ser menor que o preço normal.`,
+                        );
+                    }
+
+                    promotionPriceCents =
+                        rawPromotionPrice;
+
+                    promotionLabel =
+                        service
+                            .promotionLabel
+                            ?.trim() ||
+                        "Promoção";
+
+                    promotionStartsOn =
+                        configuredPromotionStartsOn;
+
+                    promotionEndsOn =
+                        configuredPromotionEndsOn;
+                }
+
+                /*
+                 * =================================
+                 * PREÇO ESPECIAL
+                 * =================================
+                 */
+                const specialPrice =
+                    specialPriceByServiceId
+                        .get(
+                            service.id,
+                        );
+
+                if (
+                    specialPrice
+                ) {
+                    if (
+                        !Number.isInteger(
+                            specialPrice
+                                .priceCents,
+                        ) ||
+                        specialPrice
+                            .priceCents <
+                            0
+                    ) {
+                        throw new Error(
+                            `O preço especial do serviço "${service.name}" é inválido.`,
+                        );
+                    }
+                }
+
+                /*
+                 * =================================
+                 * RESOLUÇÃO DO MELHOR PREÇO
+                 * =================================
+                 *
+                 * Começamos sempre pelo
+                 * preço normal.
+                 */
+                let priceCents =
+                    service
+                        .defaultPriceCents;
+
+                let priceSource:
+                    ClientBookableService["priceSource"] =
+                    APPOINTMENT_PRICE_SOURCE
+                        .SERVICE_DEFAULT;
+
+                /*
+                 * =================================
+                 * PROMOÇÃO VÁLIDA
+                 * =================================
+                 */
+                if (
+                    promotionActive &&
+                    promotionPriceCents !==
+                        null &&
+                    promotionPriceCents <
+                        priceCents
+                ) {
+                    priceCents =
+                        promotionPriceCents;
+
+                    priceSource =
+                        APPOINTMENT_PRICE_SOURCE
+                            .PROMOTION;
+                }
+
+                /*
+                 * =================================
+                 * PREÇO ESPECIAL DA CLIENTE
+                 * =================================
+                 *
+                 * O menor preço vence.
+                 *
+                 * Usamos <= propositalmente.
+                 *
+                 * Em caso de empate:
+                 *
+                 * CLIENT_SPECIAL vence.
+                 */
+                if (
+                    specialPrice &&
+                    specialPrice
+                        .priceCents <=
+                        priceCents
+                ) {
+                    priceCents =
+                        specialPrice
+                            .priceCents;
+
+                    priceSource =
+                        APPOINTMENT_PRICE_SOURCE
+                            .CLIENT_SPECIAL;
+                }
+
+                /*
+                 * =================================
+                 * CATÁLOGO DA CLIENTE
+                 * =================================
+                 */
+                return {
+                    id:
+                        service.id,
+
+                    name:
+                        service.name,
+
+                    description:
+                        service
+                            .description,
+
+                    category:
+                        service.category,
+
+                    durationMinutes:
+                        service
+                            .durationMinutes,
+
+                    defaultPriceCents:
+                        service
+                            .defaultPriceCents,
+
+                    priceType,
+
+                    promotionActive,
+
+                    promotionPriceCents,
+
+                    promotionLabel,
+
+                    promotionStartsOn,
+
+                    promotionEndsOn,
+
+                    priceCents,
+
+                    priceSource,
+                };
+            },
+        );
+    }
 }

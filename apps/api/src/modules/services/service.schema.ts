@@ -30,6 +30,95 @@ const serviceDefaultPriceCentsSchema =
       "O preço não pode ser negativo.",
     );
 
+/*
+ * =================================
+ * DATA YYYY-MM-DD
+ * =================================
+ *
+ * Além do formato, validamos se a
+ * data realmente existe.
+ *
+ * Exemplos válidos:
+ *
+ * 2026-09-01
+ * 2028-02-29
+ *
+ * Exemplos inválidos:
+ *
+ * 01/09/2026
+ * 2026-02-30
+ * 2026-13-01
+ */
+const DATE_ONLY_REGEX =
+  /^\d{4}-\d{2}-\d{2}$/;
+
+function isValidDateOnly(
+  value:
+    string,
+): boolean {
+  if (
+    !DATE_ONLY_REGEX.test(
+      value,
+    )
+  ) {
+    return false;
+  }
+
+  const [
+    yearText,
+    monthText,
+    dayText,
+  ] =
+    value.split("-");
+
+  const year =
+    Number(
+      yearText,
+    );
+
+  const month =
+    Number(
+      monthText,
+    );
+
+  const day =
+    Number(
+      dayText,
+    );
+
+  const date =
+    new Date(
+      Date.UTC(
+        year,
+        month - 1,
+        day,
+      ),
+    );
+
+  return (
+    date.getUTCFullYear() ===
+      year &&
+    date.getUTCMonth() ===
+      month - 1 &&
+    date.getUTCDate() ===
+      day
+  );
+}
+
+const promotionDateSchema =
+  z
+    .string()
+    .trim()
+    .refine(
+      isValidDateOnly,
+      {
+        message:
+          "Informe uma data válida no formato YYYY-MM-DD.",
+      },
+    )
+    .nullable()
+    .optional();
+
 export const createServiceSchema =
   z.object({
     name:
@@ -71,14 +160,22 @@ export const updateServiceSchema =
  * {
  *   "active": true,
  *   "promotionPriceCents": 25000,
- *   "promotionLabel": "Promoção"
+ *   "promotionLabel": "Promoção de setembro",
+ *   "promotionStartsOn": "2026-09-01",
+ *   "promotionEndsOn": "2026-09-30"
  * }
  *
- * DESATIVAR:
+ * ENCERRAR ANTECIPADAMENTE:
  *
  * {
  *   "active": false
  * }
+ *
+ * Ao desativar, os dados configurados
+ * da promoção NÃO devem ser apagados.
+ *
+ * Essa preservação será tratada no
+ * ServiceService.
  */
 export const servicePromotionSchema =
   z
@@ -91,8 +188,8 @@ export const servicePromotionSchema =
           .number()
           .int()
           .min(
-            0,
-            "O preço promocional não pode ser negativo.",
+            1,
+            "O preço promocional deve ser maior que zero.",
           )
           .nullable()
           .optional(),
@@ -111,6 +208,12 @@ export const servicePromotionSchema =
           )
           .nullable()
           .optional(),
+
+      promotionStartsOn:
+        promotionDateSchema,
+
+      promotionEndsOn:
+        promotionDateSchema,
     })
     .superRefine(
       (
@@ -118,34 +221,125 @@ export const servicePromotionSchema =
         context,
       ) => {
         /*
-         * Para ativar uma promoção,
-         * obrigatoriamente precisamos
-         * receber um preço.
+         * =================================
+         * PROMOÇÃO ATIVA
+         * =================================
          *
-         * A comparação com o preço
-         * normal será feita no Service,
-         * porque somente ele conhece
-         * o serviço atual.
+         * Para ativar precisamos de:
+         *
+         * - preço promocional;
+         * - data inicial;
+         * - data final.
          */
         if (
-          value.active &&
-          (
+          value.active
+        ) {
+          if (
             value.promotionPriceCents ===
               undefined ||
             value.promotionPriceCents ===
               null
-          )
+          ) {
+            context.addIssue({
+              code:
+                "custom",
+
+              path: [
+                "promotionPriceCents",
+              ],
+
+              message:
+                "Informe o preço promocional.",
+            });
+          }
+
+          if (
+            value.promotionStartsOn ===
+              undefined ||
+            value.promotionStartsOn ===
+              null
+          ) {
+            context.addIssue({
+              code:
+                "custom",
+
+              path: [
+                "promotionStartsOn",
+              ],
+
+              message:
+                "Informe a data inicial da promoção.",
+            });
+          }
+
+          if (
+            value.promotionEndsOn ===
+              undefined ||
+            value.promotionEndsOn ===
+              null
+          ) {
+            context.addIssue({
+              code:
+                "custom",
+
+              path: [
+                "promotionEndsOn",
+              ],
+
+              message:
+                "Informe a data final da promoção.",
+            });
+          }
+        }
+
+        /*
+         * =================================
+         * ORDEM DAS DATAS
+         * =================================
+         *
+         * Como o formato é YYYY-MM-DD,
+         * datas válidas podem ser
+         * comparadas diretamente.
+         *
+         * Permitimos:
+         *
+         * início === fim
+         *
+         * Exemplo:
+         *
+         * promoção válida somente
+         * durante 2026-09-15.
+         */
+        if (
+          typeof value
+            .promotionStartsOn ===
+            "string" &&
+          typeof value
+            .promotionEndsOn ===
+            "string" &&
+          isValidDateOnly(
+            value
+              .promotionStartsOn,
+          ) &&
+          isValidDateOnly(
+            value
+              .promotionEndsOn,
+          ) &&
+          value
+            .promotionStartsOn >
+            value
+              .promotionEndsOn
         ) {
           context.addIssue({
             code:
               "custom",
 
             path: [
-              "promotionPriceCents",
+              "promotionEndsOn",
             ],
 
             message:
-              "Informe o preço promocional.",
+              "A data final da promoção deve ser igual ou posterior à data inicial.",
           });
         }
       },

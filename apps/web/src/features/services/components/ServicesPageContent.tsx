@@ -5,6 +5,7 @@ import {
 } from "@priscila/shared";
 
 import {
+    CalendarDays,
     Flame,
     RefreshCw,
     Scissors,
@@ -57,6 +58,28 @@ function formatPrice(
     );
 }
 
+function formatDateOnly(
+    value:
+        string,
+) {
+    const [
+        year,
+        month,
+        day,
+    ] =
+        value.split("-");
+
+    if (
+        !year ||
+        !month ||
+        !day
+    ) {
+        return value;
+    }
+
+    return `${day}/${month}/${year}`;
+}
+
 export function ServicesPageContent() {
     const {
         data:
@@ -104,7 +127,7 @@ export function ServicesPageContent() {
                                     key={
                                         item
                                     }
-                                    className="h-[195px] animate-pulse rounded-2xl border border-[#E5E9E2] bg-white"
+                                    className="h-[220px] animate-pulse rounded-2xl border border-[#E5E9E2] bg-white"
                                 />
                             ),
                         )}
@@ -167,11 +190,27 @@ export function ServicesPageContent() {
                                         SERVICE_PRICE_TYPES
                                             .STARTING_FROM;
 
+                                    /*
+                                     * promotionIsActive representa
+                                     * somente o estado administrativo
+                                     * da promoção.
+                                     *
+                                     * A validade por data será tratada
+                                     * na regra central de preço.
+                                     */
                                     const promotionIsActive =
                                         service
                                             .promotionActive &&
                                         service
                                             .promotionPriceCents !==
+                                            null;
+
+                                    const hasPromotionPeriod =
+                                        service
+                                            .promotionStartsOn !==
+                                            null &&
+                                        service
+                                            .promotionEndsOn !==
                                             null;
 
                                     return (
@@ -300,6 +339,28 @@ export function ServicesPageContent() {
                                                                 </p>
                                                             </div>
                                                         </div>
+
+                                                        {hasPromotionPeriod && (
+                                                            <div className="mt-3 border-t border-[#EEE1C3] pt-3">
+                                                                <p className="flex items-center gap-1.5 text-xs font-medium text-[#80601B]">
+                                                                    <CalendarDays className="size-3.5 shrink-0" />
+
+                                                                    <span>
+                                                                        {formatDateOnly(
+                                                                            service
+                                                                                .promotionStartsOn!,
+                                                                        )}
+
+                                                                        {" até "}
+
+                                                                        {formatDateOnly(
+                                                                            service
+                                                                                .promotionEndsOn!,
+                                                                        )}
+                                                                    </span>
+                                                                </p>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 ) : (
                                                     <div>
@@ -330,6 +391,34 @@ export function ServicesPageContent() {
                                                                 )}
                                                             </p>
                                                         )}
+
+                                                        {!promotionIsActive &&
+                                                            hasPromotionPeriod &&
+                                                            service
+                                                                .promotionPriceCents !==
+                                                                null && (
+                                                                <div className="mt-3 rounded-xl border border-[#E7E7E2] bg-[#FAFAF8] px-3 py-2.5">
+                                                                    <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#858A80]">
+                                                                        Última promoção
+                                                                    </p>
+
+                                                                    <p className="mt-1 flex items-center gap-1.5 text-xs text-[#6F756B]">
+                                                                        <CalendarDays className="size-3.5 shrink-0" />
+
+                                                                        {formatDateOnly(
+                                                                            service
+                                                                                .promotionStartsOn!,
+                                                                        )}
+
+                                                                        {" até "}
+
+                                                                        {formatDateOnly(
+                                                                            service
+                                                                                .promotionEndsOn!,
+                                                                        )}
+                                                                    </p>
+                                                                </div>
+                                                            )}
                                                     </div>
                                                 )}
                                             </div>

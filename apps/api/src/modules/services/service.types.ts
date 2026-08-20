@@ -54,9 +54,10 @@ export type ServiceDocument = {
    * PROMOÇÃO
    * =================================
    *
-   * Também opcionais no Firestore
-   * porque documentos antigos ainda
-   * não possuem esses campos.
+   * Estes campos são opcionais no
+   * Firestore porque documentos
+   * antigos ainda podem não possuir
+   * configuração de promoção.
    */
   promotionActive?:
     boolean;
@@ -65,6 +66,22 @@ export type ServiceDocument = {
     number | null;
 
   promotionLabel?:
+    string | null;
+
+  /*
+   * Datas da promoção no formato:
+   *
+   * YYYY-MM-DD
+   *
+   * Também opcionais para manter
+   * compatibilidade com documentos
+   * criados antes da implementação
+   * de promoção com período.
+   */
+  promotionStartsOn?:
+    string | null;
+
+  promotionEndsOn?:
     string | null;
 
   /*
