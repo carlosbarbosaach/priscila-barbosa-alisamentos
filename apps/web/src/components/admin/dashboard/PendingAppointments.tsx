@@ -1,5 +1,6 @@
-import type {
-  DashboardPendingAppointment,
+import {
+  APPOINTMENT_PRICE_SOURCE,
+  type DashboardPendingAppointment,
 } from "@priscila/shared";
 
 import {
@@ -7,6 +8,7 @@ import {
   CalendarDays,
   ChevronRight,
   Clock3,
+  Flame,
   Scissors,
   UserRound,
   WalletCards,
@@ -25,20 +27,25 @@ type PendingAppointmentsProps = {
   appointments:
   DashboardPendingAppointment[];
 
-  timezone: string;
+  timezone:
+  string;
 };
 
 const currencyFormatter =
   new Intl.NumberFormat(
     "pt-BR",
     {
-      style: "currency",
-      currency: "BRL",
+      style:
+        "currency",
+
+      currency:
+        "BRL",
     },
   );
 
 function formatPrice(
-  priceCents: number,
+  priceCents:
+    number,
 ) {
   return currencyFormatter.format(
     priceCents / 100,
@@ -46,8 +53,11 @@ function formatPrice(
 }
 
 function formatAppointmentDate(
-  startsAt: string,
-  timezone: string,
+  startsAt:
+    string,
+
+  timezone:
+    string,
 ) {
   const date =
     new Date(
@@ -65,10 +75,18 @@ function formatAppointmentDate(
   return new Intl.DateTimeFormat(
     "pt-BR",
     {
-      weekday: "short",
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
+      weekday:
+        "short",
+
+      day:
+        "2-digit",
+
+      month:
+        "short",
+
+      year:
+        "numeric",
+
       timeZone:
         timezone,
     },
@@ -78,8 +96,11 @@ function formatAppointmentDate(
 }
 
 function formatAppointmentTime(
-  startsAt: string,
-  timezone: string,
+  startsAt:
+    string,
+
+  timezone:
+    string,
 ) {
   const date =
     new Date(
@@ -97,9 +118,15 @@ function formatAppointmentTime(
   return new Intl.DateTimeFormat(
     "pt-BR",
     {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
+      hour:
+        "2-digit",
+
+      minute:
+        "2-digit",
+
+      hour12:
+        false,
+
       timeZone:
         timezone,
     },
@@ -109,16 +136,25 @@ function formatAppointmentTime(
 }
 
 function getDateKeyInTimeZone(
-  date: Date,
-  timezone: string,
+  date:
+    Date,
+
+  timezone:
+    string,
 ) {
   const formatter =
     new Intl.DateTimeFormat(
       "en-CA",
       {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
+        year:
+          "numeric",
+
+        month:
+          "2-digit",
+
+        day:
+          "2-digit",
+
         timeZone:
           timezone,
       },
@@ -131,20 +167,29 @@ function getDateKeyInTimeZone(
 
   const year =
     parts.find(
-      (part) =>
-        part.type === "year",
+      (
+        part,
+      ) =>
+        part.type ===
+        "year",
     )?.value;
 
   const month =
     parts.find(
-      (part) =>
-        part.type === "month",
+      (
+        part,
+      ) =>
+        part.type ===
+        "month",
     )?.value;
 
   const day =
     parts.find(
-      (part) =>
-        part.type === "day",
+      (
+        part,
+      ) =>
+        part.type ===
+        "day",
     )?.value;
 
   if (
@@ -159,7 +204,8 @@ function getDateKeyInTimeZone(
 }
 
 function dateKeyToUtcTimestamp(
-  dateKey: string,
+  dateKey:
+    string,
 ) {
   const [
     year,
@@ -167,8 +213,12 @@ function dateKeyToUtcTimestamp(
     day,
   ] =
     dateKey
-      .split("-")
-      .map(Number);
+      .split(
+        "-",
+      )
+      .map(
+        Number,
+      );
 
   if (
     !year ||
@@ -186,8 +236,11 @@ function dateKeyToUtcTimestamp(
 }
 
 function getDaysUntilAppointment(
-  startsAt: string,
-  timezone: string,
+  startsAt:
+    string,
+
+  timezone:
+    string,
 ) {
   const appointmentDate =
     new Date(
@@ -249,8 +302,11 @@ function getDaysUntilAppointment(
 }
 
 function getUrgencyConfig(
-  startsAt: string,
-  timezone: string,
+  startsAt:
+    string,
+
+  timezone:
+    string,
 ) {
   const days =
     getDaysUntilAppointment(
@@ -262,41 +318,53 @@ function getUrgencyConfig(
     days === null
   ) {
     return {
-      label: "Pendente",
+      label:
+        "Pendente",
 
       className:
         "border-[#E9D8A6] bg-[#FFF8E7] text-[#8A6A2F]",
     };
   }
 
-  if (days < 0) {
+  if (
+    days < 0
+  ) {
     return {
-      label: "Atrasada",
+      label:
+        "Atrasada",
 
       className:
         "border-[#E8CEC7] bg-[#FAECE8] text-[#984B3E]",
     };
   }
 
-  if (days === 0) {
+  if (
+    days === 0
+  ) {
     return {
-      label: "Hoje",
+      label:
+        "Hoje",
 
       className:
         "border-[#E7C879] bg-[#FFF4D8] text-[#7A5A1E]",
     };
   }
 
-  if (days === 1) {
+  if (
+    days === 1
+  ) {
     return {
-      label: "Amanhã",
+      label:
+        "Amanhã",
 
       className:
         "border-[#E9D8A6] bg-[#FFF8E7] text-[#8A6A2F]",
     };
   }
 
-  if (days <= 3) {
+  if (
+    days <= 3
+  ) {
     return {
       label:
         `Em ${days} dias`,
@@ -307,7 +375,8 @@ function getUrgencyConfig(
   }
 
   return {
-    label: "Agendada",
+    label:
+      "Agendada",
 
     className:
       "border-[#DDD8D0] bg-[#F7F5F1] text-[#6D716A]",
@@ -315,8 +384,11 @@ function getUrgencyConfig(
 }
 
 function getAgendaHref(
-  startsAt: string,
-  timezone: string,
+  startsAt:
+    string,
+
+  timezone:
+    string,
 ) {
   const date =
     new Date(
@@ -367,8 +439,7 @@ export function PendingAppointments({
             {appointments.length >
               0 && (
                 <p className="mt-2 pl-[52px] text-xs leading-5 text-[#73776D]">
-                  Ordenadas pela data de
-                  atendimento mais próxima.
+                  Ordenadas pela data de atendimento mais próxima.
                 </p>
               )}
           </div>
@@ -394,15 +465,11 @@ export function PendingAppointments({
             </div>
 
             <p className="mt-4 font-semibold text-[#20241D]">
-              Nenhuma solicitação
-              pendente
+              Nenhuma solicitação pendente
             </p>
 
             <p className="mx-auto mt-1 max-w-md text-sm leading-6 text-[#73776D]">
-              Novos pedidos de
-              agendamento que precisem
-              de confirmação aparecerão
-              aqui.
+              Novos pedidos de agendamento que precisem de confirmação aparecerão aqui.
             </p>
           </div>
         ) : (
@@ -425,6 +492,12 @@ export function PendingAppointments({
                     timezone,
                   );
 
+                const isPromotion =
+                  appointment
+                    .priceSource ===
+                  APPOINTMENT_PRICE_SOURCE
+                    .PROMOTION;
+
                 return (
                   <article
                     key={
@@ -434,12 +507,21 @@ export function PendingAppointments({
                   >
                     {/* STATUS */}
                     <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
-                      <span className="inline-flex items-center gap-1.5 rounded-full border border-[#E9D8A6] bg-[#FFF8E7] px-3 py-1.5 text-xs font-semibold text-[#8A6A2F]">
-                        <Clock3 className="size-3.5" />
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-[#E9D8A6] bg-[#FFF8E7] px-3 py-1.5 text-xs font-semibold text-[#8A6A2F]">
+                          <Clock3 className="size-3.5" />
 
-                        Aguardando
-                        confirmação
-                      </span>
+                          Aguardando confirmação
+                        </span>
+
+                        {isPromotion && (
+                          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#E9D39E] bg-[#FFF7DF] px-3 py-1.5 text-xs font-semibold text-[#755819]">
+                            <Flame className="size-3.5" />
+
+                            Promoção
+                          </span>
+                        )}
+                      </div>
 
                       <span
                         className={[
@@ -497,6 +579,14 @@ export function PendingAppointments({
                                   .serviceName
                               }
                             </p>
+
+                            {isPromotion && (
+                              <p className="mt-1 flex items-center gap-1 text-xs font-medium text-[#80601B]">
+                                <Flame className="size-3" />
+
+                                Valor promocional
+                              </p>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -550,7 +640,9 @@ export function PendingAppointments({
 
                           <div>
                             <p className="text-[11px] font-semibold uppercase tracking-wide text-[#8A8E84]">
-                              Valor
+                              {isPromotion
+                                ? "Valor promocional"
+                                : "Valor"}
                             </p>
 
                             <p className="mt-1 text-sm font-bold text-[#304229]">
@@ -559,13 +651,24 @@ export function PendingAppointments({
                                   .chargedPriceCents,
                               )}
                             </p>
+
+                            {isPromotion && (
+                              <span className="mt-2 inline-flex items-center gap-1 rounded-full border border-[#E9D39E] bg-[#FFF7DF] px-2 py-1 text-[10px] font-semibold text-[#755819]">
+                                <Flame className="size-3" />
+
+                                Promoção
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
+
                       {/* ABRIR NA AGENDA */}
                       <div className="flex items-center justify-center sm:col-span-2 xl:col-span-1">
                         <Link
-                          href={agendaHref}
+                          href={
+                            agendaHref
+                          }
                           title="Ver na agenda"
                           aria-label={`Ver ${appointment.clientName} na agenda`}
                           className="group inline-flex size-9 items-center justify-center rounded-xl border border-[#D9DED5] bg-[#F7F9F5] text-[#465B36] transition hover:border-[#304229] hover:bg-[#304229] hover:text-white"

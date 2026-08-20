@@ -1,32 +1,59 @@
+import type {
+  AppointmentPriceSource,
+} from "@priscila/shared";
+
 export type DashboardMetrics = {
-  appointmentsToday: number;
+  appointmentsToday:
+    number;
 
-  pendingApproval: number;
+  pendingApproval:
+    number;
 
-  confirmedToday: number;
+  confirmedToday:
+    number;
 
-  cancelledToday: number;
+  cancelledToday:
+    number;
 };
 
 export type DashboardPendingAppointment = {
-  id: string;
+  id:
+    string;
 
-  clientName: string;
+  clientName:
+    string;
 
-  serviceName: string;
+  serviceName:
+    string;
 
-  startsAt: string;
+  startsAt:
+    string;
 
-  chargedPriceCents: number;
+  chargedPriceCents:
+    number;
+
+  /*
+   * Origem do preço gravado
+   * no momento do agendamento.
+   *
+   * SERVICE_DEFAULT
+   * CLIENT_SPECIAL
+   * PROMOTION
+   */
+  priceSource:
+    AppointmentPriceSource;
 };
 
 export type DashboardSummary = {
-  metrics: DashboardMetrics;
+  metrics:
+    DashboardMetrics;
 
   pendingAppointments:
     DashboardPendingAppointment[];
 
-  timezone: string;
+  timezone:
+    string;
 
-  generatedAt: string;
+  generatedAt:
+    string;
 };

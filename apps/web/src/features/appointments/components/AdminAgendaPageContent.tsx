@@ -41,6 +41,10 @@ import {
 } from "@/components/ui/button";
 
 import {
+  AppointmentPromotionBadge,
+} from "@/features/appointments/components/AppointmentPromotionBadge";
+
+import {
   CompleteAppointmentDialog,
 } from "@/features/appointments/components/CompleteAppointmentDialog";
 
@@ -103,7 +107,7 @@ const currencyFormatter =
 
 type AdminAgendaPageContentProps = {
   initialDateKey?:
-  string;
+    string;
 };
 
 /*
@@ -123,7 +127,7 @@ function formatBrazilPhone(
 
   if (
     digits.length ===
-    13 &&
+      13 &&
     digits.startsWith(
       "55",
     )
@@ -182,7 +186,7 @@ function formatBrazilPhone(
 
   if (
     digits.length ===
-    12 &&
+      12 &&
     digits.startsWith(
       "55",
     )
@@ -350,19 +354,19 @@ function isValidDateKey(
       Date.UTC(
         year,
         month -
-        1,
+          1,
         day,
       ),
     );
 
   return (
     date.getUTCFullYear() ===
-    year &&
+      year &&
     date.getUTCMonth() ===
-    month -
-    1 &&
+      month -
+        1 &&
     date.getUTCDate() ===
-    day
+      day
   );
 }
 
@@ -391,14 +395,14 @@ function shiftDateKey(
       Date.UTC(
         year,
         month -
-        1,
+          1,
         day,
       ),
     );
 
   date.setUTCDate(
     date.getUTCDate() +
-    amount,
+      amount,
   );
 
   const nextYear =
@@ -409,7 +413,7 @@ function shiftDateKey(
   const nextMonth =
     String(
       date.getUTCMonth() +
-      1,
+        1,
     ).padStart(
       2,
       "0",
@@ -448,7 +452,7 @@ function formatSelectedDate(
       Date.UTC(
         year,
         month -
-        1,
+          1,
         day,
         12,
       ),
@@ -527,7 +531,7 @@ function formatPrice(
   return currencyFormatter
     .format(
       priceCents /
-      100,
+        100,
     );
 }
 
@@ -536,7 +540,7 @@ function getAppointmentStatusConfig(
     AppointmentStatus,
 ) {
   switch (
-  status
+    status
   ) {
     case APPOINTMENT_STATUS
       .PENDING_APPROVAL:
@@ -711,7 +715,7 @@ export function AdminAgendaPageContent({
 
   const {
     data:
-    appointments = [],
+      appointments = [],
 
     isLoading,
 
@@ -727,7 +731,7 @@ export function AdminAgendaPageContent({
 
   const {
     data:
-    services = [],
+      services = [],
   } =
     useServices();
 
@@ -792,7 +796,8 @@ export function AdminAgendaPageContent({
       Appointment,
   ) {
     if (
-      appointment.priceSource ===
+      appointment
+        .priceSource ===
       APPOINTMENT_PRICE_SOURCE
         .CLIENT_SPECIAL
     ) {
@@ -806,10 +811,10 @@ export function AdminAgendaPageContent({
 
     return (
       priceType ===
-      SERVICE_PRICE_TYPES
-        .STARTING_FROM ||
+        SERVICE_PRICE_TYPES
+          .STARTING_FROM ||
       priceType ===
-      null
+        null
     );
   }
 
@@ -914,7 +919,7 @@ export function AdminAgendaPageContent({
           appointmentId,
         );
     } catch (
-    error
+      error
     ) {
       setActionError(
         error instanceof
@@ -953,7 +958,7 @@ export function AdminAgendaPageContent({
           appointmentId,
         );
     } catch (
-    error
+      error
     ) {
       setActionError(
         error instanceof
@@ -1005,7 +1010,7 @@ export function AdminAgendaPageContent({
             appointment.id,
         });
     } catch (
-    error
+      error
     ) {
       setActionError(
         error instanceof
@@ -1151,7 +1156,7 @@ export function AdminAgendaPageContent({
                 <span className="rounded-full border border-[#E5DED1] bg-white px-3 py-1.5 text-xs font-semibold text-[#62685E]">
                   {appointments.length}{" "}
                   {appointments.length ===
-                    1
+                  1
                     ? "agendamento"
                     : "agendamentos"}
                 </span>
@@ -1265,7 +1270,7 @@ export function AdminAgendaPageContent({
           {!isLoading &&
             !isError &&
             appointments.length ===
-            0 && (
+              0 && (
               <div className="p-5 sm:p-6">
                 <div className="flex min-h-[300px] items-center justify-center rounded-2xl border border-dashed border-[#D9D2C5] bg-[#FBF9F4] px-6 py-12 text-center">
                   <div className="max-w-md">
@@ -1288,7 +1293,7 @@ export function AdminAgendaPageContent({
           {!isLoading &&
             !isError &&
             appointments.length >
-            0 && (
+              0 && (
               <div className="divide-y divide-[#EAE4D8]">
                 {appointments.map(
                   (
@@ -1338,6 +1343,24 @@ export function AdminAgendaPageContent({
                       isVariablePriceAppointment(
                         appointment,
                       );
+
+                    /*
+                     * =================================
+                     * PROMOÇÃO
+                     * =================================
+                     *
+                     * Utilizamos o priceSource salvo
+                     * no próprio agendamento.
+                     *
+                     * Assim o histórico continua
+                     * correto mesmo que a promoção
+                     * seja retirada do serviço depois.
+                     */
+                    const isPromotion =
+                      appointment
+                        .priceSource ===
+                      APPOINTMENT_PRICE_SOURCE
+                        .PROMOTION;
 
                     const formattedPhone =
                       formatBrazilPhone(
@@ -1389,6 +1412,7 @@ export function AdminAgendaPageContent({
                         </div>
 
                         <div className="flex flex-col gap-5 lg:flex-row lg:items-center">
+                          {/* HORÁRIO */}
                           <div className="flex shrink-0 items-center gap-3 lg:w-[115px]">
                             <div className="flex size-10 items-center justify-center rounded-xl bg-[#F1EBDD] text-[#465B36]">
                               <Clock3 className="size-[18px]" />
@@ -1408,6 +1432,7 @@ export function AdminAgendaPageContent({
                             </div>
                           </div>
 
+                          {/* CLIENTE */}
                           <div className="min-w-0 flex-1">
                             <div className="flex items-start gap-3">
                               <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#EEF1EA] text-[#465B36]">
@@ -1439,6 +1464,7 @@ export function AdminAgendaPageContent({
                             </div>
                           </div>
 
+                          {/* SERVIÇO */}
                           <div className="min-w-0 flex-1">
                             <div className="flex items-start gap-3">
                               <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#F4EFE4] text-[#8A6A2F]">
@@ -1468,13 +1494,20 @@ export function AdminAgendaPageContent({
                             </div>
                           </div>
 
-                          <div className="shrink-0 lg:min-w-[145px] lg:text-right">
+                          {/* ================================= */}
+                          {/* VALOR */}
+                          {/* ================================= */}
+                          <div className="shrink-0 lg:min-w-[160px] lg:text-right">
                             <p className="text-xs font-medium uppercase tracking-wide text-[#8A8E84]">
                               {variablePrice
                                 ? isCompleted
                                   ? "Valor final"
-                                  : "Valor inicial"
-                                : "Valor"}
+                                  : isPromotion
+                                    ? "Valor promocional"
+                                    : "Valor inicial"
+                                : isPromotion
+                                  ? "Valor promocional"
+                                  : "Valor"}
                             </p>
 
                             {variablePrice &&
@@ -1490,9 +1523,18 @@ export function AdminAgendaPageContent({
                                   .chargedPriceCents,
                               )}
                             </p>
+
+                            <AppointmentPromotionBadge
+                              priceSource={
+                                appointment
+                                  .priceSource
+                              }
+                              className="mt-2 lg:ml-auto"
+                            />
                           </div>
                         </div>
 
+                        {/* RECUSADO */}
                         {appointment.status ===
                           APPOINTMENT_STATUS
                             .REJECTED &&
@@ -1512,6 +1554,7 @@ export function AdminAgendaPageContent({
                             </div>
                           )}
 
+                        {/* PENDENTE */}
                         {isPending && (
                           <div className="mt-5 flex flex-col gap-3 border-t border-[#EAE4D8] pt-5 sm:flex-row sm:items-center sm:justify-end">
                             <Button
@@ -1557,6 +1600,7 @@ export function AdminAgendaPageContent({
                           </div>
                         )}
 
+                        {/* CONFIRMADO */}
                         {isConfirmed && (
                           <div className="mt-5 flex justify-end border-t border-[#EAE4D8] pt-5">
                             <Button
@@ -1584,6 +1628,7 @@ export function AdminAgendaPageContent({
                           </div>
                         )}
 
+                        {/* EM ATENDIMENTO */}
                         {isInProgress && (
                           <div className="mt-5 flex justify-end border-t border-[#EAE4D8] pt-5">
                             <Button
@@ -1621,6 +1666,10 @@ export function AdminAgendaPageContent({
         </div>
       </section>
 
+      {/* ================================= */}
+      {/* MODAL RECUSA */}
+      {/* ================================= */}
+
       {appointmentToReject && (
         <RejectAppointmentDialog
           key={
@@ -1640,6 +1689,10 @@ export function AdminAgendaPageContent({
           }}
         />
       )}
+
+      {/* ================================= */}
+      {/* MODAL CONCLUSÃO */}
+      {/* ================================= */}
 
       {appointmentToComplete && (
         <CompleteAppointmentDialog

@@ -42,13 +42,18 @@ export class DashboardService {
   ) {}
 
   async getSummary(
-    salonId: string,
-  ): Promise<DashboardSummary> {
+    salonId:
+      string,
+  ): Promise<
+    DashboardSummary
+  > {
     /*
-     * Primeiro validamos o salão.
+     * Primeiro validamos
+     * o salão.
      */
     const salon =
-      await this.salonRepository
+      await this
+        .salonRepository
         .findById(
           salonId,
         );
@@ -69,8 +74,12 @@ export class DashboardService {
       new Date();
 
     /*
-     * As métricas de "hoje" precisam
-     * respeitar o timezone configurado
+     * =================================
+     * INTERVALO DE HOJE
+     * =================================
+     *
+     * As métricas precisam respeitar
+     * o timezone configurado
      * no salão.
      */
     const zonedNow =
@@ -107,6 +116,10 @@ export class DashboardService {
       );
 
     /*
+     * =================================
+     * CONSULTAS
+     * =================================
+     *
      * Métricas e solicitações
      * pendentes são independentes.
      *
@@ -117,7 +130,8 @@ export class DashboardService {
       pendingAppointmentEntities,
     ] =
       await Promise.all([
-        this.dashboardRepository
+        this
+          .dashboardRepository
           .getMetrics(
             salonId,
             {
@@ -126,18 +140,23 @@ export class DashboardService {
             },
           ),
 
-        this.appointmentRepository
+        this
+          .appointmentRepository
           .findPendingApprovalBySalon(
             salonId,
           ),
       ]);
 
     /*
-     * Nunca enviamos o AppointmentDocument
+     * =================================
+     * SOLICITAÇÕES PENDENTES
+     * =================================
+     *
+     * Nunca enviamos AppointmentDocument
      * cru para o frontend.
      *
-     * Criamos um DTO específico para
-     * o Dashboard.
+     * Criamos um DTO específico
+     * para o Dashboard.
      */
     const pendingAppointments:
       DashboardPendingAppointment[] =
@@ -165,6 +184,22 @@ export class DashboardService {
           chargedPriceCents:
             appointment
               .chargedPriceCents,
+
+          /*
+           * Muito importante:
+           *
+           * preservamos a origem
+           * histórica do preço.
+           *
+           * Assim, mesmo que a promoção
+           * seja retirada posteriormente
+           * do serviço, este agendamento
+           * continuará sabendo que foi
+           * realizado com promoção.
+           */
+          priceSource:
+            appointment
+              .priceSource,
         }),
       );
 
@@ -173,13 +208,14 @@ export class DashboardService {
         ...metrics,
 
         /*
-         * O contador agora representa
-         * todas as solicitações que
-         * realmente aguardam ação,
-         * independentemente da data.
+         * O contador representa todas
+         * as solicitações que realmente
+         * aguardam ação, independente
+         * da data.
          */
         pendingApproval:
-          pendingAppointments.length,
+          pendingAppointments
+            .length,
       },
 
       pendingAppointments,
@@ -188,7 +224,8 @@ export class DashboardService {
         salon.timezone,
 
       generatedAt:
-        now.toISOString(),
+        now
+          .toISOString(),
     };
   }
 }

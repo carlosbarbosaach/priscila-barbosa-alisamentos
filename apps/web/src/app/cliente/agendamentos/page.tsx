@@ -36,6 +36,7 @@ import {
 import {
   useClientBookableServices,
 } from "@/features/appointments/hooks/useClientBookableServices";
+import { AppointmentPromotionBadge } from "@/features/appointments/components/AppointmentPromotionBadge";
 
 const SALON_TIME_ZONE =
   "America/Sao_Paulo";
@@ -149,7 +150,7 @@ function formatPrice(
 ) {
   return currencyFormatter.format(
     priceCents /
-      100,
+    100,
   );
 }
 
@@ -158,7 +159,7 @@ function getStatusConfig(
     AppointmentStatus,
 ) {
   switch (
-    status
+  status
   ) {
     case APPOINTMENT_STATUS
       .PENDING_APPROVAL:
@@ -317,10 +318,10 @@ function getStatusConfig(
 
 type AppointmentCardProps = {
   appointment:
-    Appointment;
+  Appointment;
 
   fallbackPriceType?:
-    ServicePriceType;
+  ServicePriceType;
 };
 
 function AppointmentCard({
@@ -337,7 +338,7 @@ function AppointmentCard({
 
   const showRejectionReason =
     appointment.status ===
-      APPOINTMENT_STATUS.REJECTED &&
+    APPOINTMENT_STATUS.REJECTED &&
     Boolean(
       appointment
         .rejectionReason,
@@ -345,7 +346,7 @@ function AppointmentCard({
 
   const showCancellationReason =
     appointment.status ===
-      APPOINTMENT_STATUS.CANCELLED &&
+    APPOINTMENT_STATUS.CANCELLED &&
     Boolean(
       appointment
         .cancellationReason,
@@ -366,15 +367,15 @@ function AppointmentCard({
 
   const isStartingFrom =
     priceType ===
-      SERVICE_PRICE_TYPES
-        .STARTING_FROM &&
+    SERVICE_PRICE_TYPES
+      .STARTING_FROM &&
     !hasSpecialPrice;
 
   const showStartingFrom =
     isStartingFrom &&
     appointment.status !==
-      APPOINTMENT_STATUS
-        .COMPLETED;
+    APPOINTMENT_STATUS
+      .COMPLETED;
 
   return (
     <article className="overflow-hidden rounded-2xl border border-[#E5E0D5] bg-white shadow-sm sm:rounded-3xl">
@@ -549,8 +550,8 @@ function AppointmentCard({
               {showStartingFrom
                 ? "Valor inicial"
                 : appointment.status ===
-                    APPOINTMENT_STATUS
-                      .COMPLETED
+                  APPOINTMENT_STATUS
+                    .COMPLETED
                   ? "Valor final"
                   : "Valor"}
             </p>
@@ -567,6 +568,14 @@ function AppointmentCard({
                   .chargedPriceCents,
               )}
             </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <AppointmentPromotionBadge
+                priceSource={
+                  appointment
+                    .priceSource
+                }
+              />
+            </div>
           </div>
 
           <div className="text-right">
@@ -610,7 +619,7 @@ export default function ClientAppointmentsPage() {
 
   const {
     data:
-      services = [],
+    services = [],
   } =
     useClientBookableServices();
 
@@ -643,11 +652,11 @@ export default function ClientAppointmentsPage() {
         appointment,
       ) =>
         appointment.status ===
-          APPOINTMENT_STATUS
-            .CONFIRMED ||
+        APPOINTMENT_STATUS
+          .CONFIRMED ||
         appointment.status ===
-          APPOINTMENT_STATUS
-            .IN_PROGRESS,
+        APPOINTMENT_STATUS
+          .IN_PROGRESS,
     );
 
   const rejected =
@@ -696,7 +705,7 @@ export default function ClientAppointmentsPage() {
   function getFilteredAppointments():
     Appointment[] {
     switch (
-      filter
+    filter
     ) {
       case "PENDING":
         return pending;
@@ -723,81 +732,81 @@ export default function ClientAppointmentsPage() {
 
   const filters: {
     id:
-      AppointmentFilter;
+    AppointmentFilter;
 
     label:
-      string;
+    string;
 
     count:
-      number;
+    number;
   }[] = [
-    {
-      id:
-        "ALL",
+      {
+        id:
+          "ALL",
 
-      label:
-        "Todos",
+        label:
+          "Todos",
 
-      count:
-        allAppointments
-          .length,
-    },
+        count:
+          allAppointments
+            .length,
+      },
 
-    {
-      id:
-        "PENDING",
+      {
+        id:
+          "PENDING",
 
-      label:
-        "Aguardando",
+        label:
+          "Aguardando",
 
-      count:
-        pending.length,
-    },
+        count:
+          pending.length,
+      },
 
-    {
-      id:
-        "CONFIRMED",
+      {
+        id:
+          "CONFIRMED",
 
-      label:
-        "Confirmados",
+        label:
+          "Confirmados",
 
-      count:
-        confirmed.length,
-    },
+        count:
+          confirmed.length,
+      },
 
-    {
-      id:
-        "REJECTED",
+      {
+        id:
+          "REJECTED",
 
-      label:
-        "Recusados",
+        label:
+          "Recusados",
 
-      count:
-        rejected.length,
-    },
+        count:
+          rejected.length,
+      },
 
-    {
-      id:
-        "COMPLETED",
+      {
+        id:
+          "COMPLETED",
 
-      label:
-        "Concluídos",
+        label:
+          "Concluídos",
 
-      count:
-        completed.length,
-    },
+        count:
+          completed.length,
+      },
 
-    {
-      id:
-        "CANCELLED",
+      {
+        id:
+          "CANCELLED",
 
-      label:
-        "Cancelados",
+        label:
+          "Cancelados",
 
-      count:
-        cancelled.length,
-    },
-  ];
+        count:
+          cancelled.length,
+      },
+    ];
 
   return (
     <div className="space-y-7 sm:space-y-8">
