@@ -36,23 +36,39 @@ export function mapServiceEntityToService(
     /*
      * Compatibilidade com documentos
      * antigos do Firestore.
-     *
-     * Se não existir priceType:
-     *
-     * undefined
-     * ↓
-     * FIXED
      */
     priceType:
       service.priceType ??
       SERVICE_PRICE_TYPES.FIXED,
 
     /*
+     * =================================
+     * PROMOÇÃO
+     * =================================
+     *
+     * Documento antigo:
+     *
+     * promotionActive = undefined
+     *
+     * ↓
+     *
+     * promoção desativada.
+     */
+    promotionActive:
+      service.promotionActive ??
+      false,
+
+    promotionPriceCents:
+      service.promotionPriceCents ??
+      null,
+
+    promotionLabel:
+      service.promotionLabel ??
+      null,
+
+    /*
      * Serviços antigos não possuem
      * phases no Firestore.
-     *
-     * Para o restante da aplicação,
-     * sempre devolvemos array.
      */
     phases:
       service.phases ??

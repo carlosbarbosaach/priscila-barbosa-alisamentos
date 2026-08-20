@@ -14,8 +14,6 @@ import {
   CalendarDays,
   CalendarPlus,
   CheckCircle2,
-  ChevronDown,
-  ChevronUp,
   CircleX,
   Clock3,
   History,
@@ -42,8 +40,13 @@ import {
 const SALON_TIME_ZONE =
   "America/Sao_Paulo";
 
-const HISTORY_PREVIEW_LIMIT =
-  3;
+type AppointmentFilter =
+  | "ALL"
+  | "PENDING"
+  | "CONFIRMED"
+  | "REJECTED"
+  | "COMPLETED"
+  | "CANCELLED";
 
 const dateFormatter =
   new Intl.DateTimeFormat(
@@ -113,10 +116,9 @@ function formatDate(
     return "Data indisponível";
   }
 
-  return dateFormatter
-    .format(
-      date,
-    );
+  return dateFormatter.format(
+    date,
+  );
 }
 
 function formatTime(
@@ -136,21 +138,19 @@ function formatTime(
     return "--:--";
   }
 
-  return timeFormatter
-    .format(
-      date,
-    );
+  return timeFormatter.format(
+    date,
+  );
 }
 
 function formatPrice(
   priceCents:
     number,
 ) {
-  return currencyFormatter
-    .format(
-      priceCents /
+  return currencyFormatter.format(
+    priceCents /
       100,
-    );
+  );
 }
 
 function getStatusConfig(
@@ -158,7 +158,7 @@ function getStatusConfig(
     AppointmentStatus,
 ) {
   switch (
-  status
+    status
   ) {
     case APPOINTMENT_STATUS
       .PENDING_APPROVAL:
@@ -166,8 +166,17 @@ function getStatusConfig(
         label:
           "Aguardando confirmação",
 
-        className:
+        shortLabel:
+          "Aguardando",
+
+        badgeClassName:
           "border-[#E9D8A6] bg-[#FFF8E7] text-[#8A6A2F]",
+
+        messageClassName:
+          "border-[#EEE0B9] bg-[#FFF9EA] text-[#745B25]",
+
+        message:
+          "Sua solicitação foi enviada e está aguardando confirmação do salão.",
 
         icon:
           Clock3,
@@ -177,10 +186,19 @@ function getStatusConfig(
       .CONFIRMED:
       return {
         label:
+          "Agendamento confirmado",
+
+        shortLabel:
           "Confirmado",
 
-        className:
+        badgeClassName:
           "border-[#C9D9C4] bg-[#EEF5EB] text-[#36542E]",
+
+        messageClassName:
+          "border-[#D3E0CF] bg-[#F4F8F2] text-[#36542E]",
+
+        message:
+          "Seu horário está confirmado. Esperamos você!",
 
         icon:
           CheckCircle2,
@@ -192,8 +210,17 @@ function getStatusConfig(
         label:
           "Em atendimento",
 
-        className:
+        shortLabel:
+          "Em atendimento",
+
+        badgeClassName:
           "border-[#C9D9C4] bg-[#EEF5EB] text-[#36542E]",
+
+        messageClassName:
+          "border-[#D3E0CF] bg-[#F4F8F2] text-[#36542E]",
+
+        message:
+          "Seu atendimento está em andamento.",
 
         icon:
           Sparkles,
@@ -203,10 +230,19 @@ function getStatusConfig(
       .COMPLETED:
       return {
         label:
+          "Atendimento concluído",
+
+        shortLabel:
           "Concluído",
 
-        className:
+        badgeClassName:
           "border-[#D7DDD3] bg-[#F4F6F2] text-[#596454]",
+
+        messageClassName:
+          "border-[#E1E5DE] bg-[#F7F8F6] text-[#596454]",
+
+        message:
+          "Este atendimento foi concluído.",
 
         icon:
           CheckCircle2,
@@ -216,10 +252,19 @@ function getStatusConfig(
       .REJECTED:
       return {
         label:
+          "Solicitação recusada",
+
+        shortLabel:
           "Recusado",
 
-        className:
+        badgeClassName:
           "border-[#E8CEC7] bg-[#FAECE8] text-[#984B3E]",
+
+        messageClassName:
+          "border-[#E8CEC7] bg-[#FFF7F5] text-[#984B3E]",
+
+        message:
+          "Esta solicitação não foi confirmada pelo salão.",
 
         icon:
           CircleX,
@@ -229,10 +274,19 @@ function getStatusConfig(
       .CANCELLED:
       return {
         label:
+          "Agendamento cancelado",
+
+        shortLabel:
           "Cancelado",
 
-        className:
+        badgeClassName:
           "border-[#DDD8D0] bg-[#F5F3EF] text-[#69645D]",
+
+        messageClassName:
+          "border-[#E2DED7] bg-[#F8F6F2] text-[#69645D]",
+
+        message:
+          "Este agendamento foi cancelado.",
 
         icon:
           Ban,
@@ -243,8 +297,17 @@ function getStatusConfig(
         label:
           status,
 
-        className:
+        shortLabel:
+          status,
+
+        badgeClassName:
           "border-[#DDD8D0] bg-[#F5F3EF] text-[#69645D]",
+
+        messageClassName:
+          "border-[#E2DED7] bg-[#F8F6F2] text-[#69645D]",
+
+        message:
+          "",
 
         icon:
           Clock3,
@@ -254,10 +317,10 @@ function getStatusConfig(
 
 type AppointmentCardProps = {
   appointment:
-  Appointment;
+    Appointment;
 
   fallbackPriceType?:
-  ServicePriceType;
+    ServicePriceType;
 };
 
 function AppointmentCard({
@@ -274,7 +337,7 @@ function AppointmentCard({
 
   const showRejectionReason =
     appointment.status ===
-    APPOINTMENT_STATUS.REJECTED &&
+      APPOINTMENT_STATUS.REJECTED &&
     Boolean(
       appointment
         .rejectionReason,
@@ -282,23 +345,12 @@ function AppointmentCard({
 
   const showCancellationReason =
     appointment.status ===
-    APPOINTMENT_STATUS.CANCELLED &&
+      APPOINTMENT_STATUS.CANCELLED &&
     Boolean(
       appointment
         .cancellationReason,
     );
 
-  /*
-   * Agendamentos novos:
-   * usa o snapshot.
-   *
-   * Agendamentos antigos:
-   * utiliza temporariamente o tipo
-   * atual do serviço.
-   *
-   * Se nem isso estiver disponível,
-   * considera FIXED.
-   */
   const priceType =
     appointment
       .servicePriceTypeSnapshot ??
@@ -307,103 +359,152 @@ function AppointmentCard({
       .FIXED;
 
   const hasSpecialPrice =
-    appointment.priceSource ===
+    appointment
+      .priceSource ===
     APPOINTMENT_PRICE_SOURCE
       .CLIENT_SPECIAL;
 
   const isStartingFrom =
     priceType ===
-    SERVICE_PRICE_TYPES
-      .STARTING_FROM &&
+      SERVICE_PRICE_TYPES
+        .STARTING_FROM &&
     !hasSpecialPrice;
 
-  /*
-   * Enquanto o atendimento ainda
-   * não foi concluído, mostramos
-   * "A partir de".
-   *
-   * Depois da conclusão,
-   * chargedPriceCents representa
-   * o valor final efetivamente
-   * cobrado.
-   */
   const showStartingFrom =
     isStartingFrom &&
     appointment.status !==
-    APPOINTMENT_STATUS.COMPLETED;
+      APPOINTMENT_STATUS
+        .COMPLETED;
 
   return (
-    <article className="overflow-hidden rounded-3xl border border-[#E5E0D5] bg-white shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#EEEAE1] bg-[#FCFBF8] px-5 py-4 sm:px-6">
-        <span
-          className={[
-            "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold",
+    <article className="overflow-hidden rounded-2xl border border-[#E5E0D5] bg-white shadow-sm sm:rounded-3xl">
+      {/* STATUS */}
+      <div className="border-b border-[#EEEAE1] bg-[#FCFBF8] px-4 py-4 sm:px-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <span
+            className={[
+              "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold",
 
-            status.className,
-          ].join(
-            " ",
-          )}
-        >
-          <StatusIcon className="size-3.5" />
+              status
+                .badgeClassName,
+            ].join(
+              " ",
+            )}
+          >
+            <StatusIcon className="size-3.5" />
 
-          {
-            status.label
-          }
-        </span>
+            {
+              status.label
+            }
+          </span>
 
-        <span className="text-xs font-medium text-[#92978E]">
-          {formatDate(
-            appointment
-              .startsAt,
-          )}
-        </span>
+          <span className="text-xs font-medium text-[#92978E]">
+            {formatDate(
+              appointment
+                .startsAt,
+            )}
+          </span>
+        </div>
       </div>
 
-      <div className="p-5 sm:p-6">
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-[#EEF1EA] text-[#304229]">
+      <div className="p-4 sm:p-6">
+        {/* SERVIÇO */}
+        <div className="flex items-start gap-3">
+          <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-[#EEF1EA] text-[#304229] sm:size-12">
             <Sparkles className="size-5" />
           </div>
 
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#92978E]">
-              Serviço
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#92978E]">
+              Serviço solicitado
             </p>
 
-            <h3 className="mt-1 text-lg font-bold text-[#263620]">
+            <h3 className="mt-1 break-words text-lg font-bold leading-tight text-[#263620]">
               {
                 appointment
                   .serviceNameSnapshot
               }
             </h3>
+          </div>
+        </div>
 
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <div className="flex items-center gap-2 text-sm text-[#5F675C]">
-                <CalendarDays className="size-4 shrink-0 text-[#7A8075]" />
+        {/* DATA E HORÁRIO */}
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <div className="rounded-2xl bg-[#F7F6F2] p-3.5">
+            <div className="flex items-center gap-2 text-[#7A8075]">
+              <CalendarDays className="size-4 shrink-0" />
 
-                <span className="capitalize">
-                  {formatDate(
-                    appointment
-                      .startsAt,
-                  )}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2 text-sm text-[#5F675C]">
-                <Clock3 className="size-4 shrink-0 text-[#7A8075]" />
-
-                <span>
-                  {formatTime(
-                    appointment
-                      .startsAt,
-                  )}
-                </span>
-              </div>
+              <span className="text-[11px] font-semibold uppercase tracking-wide">
+                Data
+              </span>
             </div>
 
-            {showRejectionReason && (
-              <div className="mt-5 rounded-2xl border border-[#E8CEC7] bg-[#FFF8F6] p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-[#984B3E]">
+            <p className="mt-2 text-sm font-semibold capitalize leading-5 text-[#30372D]">
+              {formatDate(
+                appointment
+                  .startsAt,
+              )}
+            </p>
+          </div>
+
+          <div className="rounded-2xl bg-[#F7F6F2] p-3.5">
+            <div className="flex items-center gap-2 text-[#7A8075]">
+              <Clock3 className="size-4 shrink-0" />
+
+              <span className="text-[11px] font-semibold uppercase tracking-wide">
+                Horário
+              </span>
+            </div>
+
+            <p className="mt-2 text-base font-bold text-[#30372D]">
+              {formatTime(
+                appointment
+                  .startsAt,
+              )}
+            </p>
+          </div>
+        </div>
+
+        {/* SITUAÇÃO */}
+        <div
+          className={[
+            "mt-4 rounded-2xl border p-4",
+
+            status
+              .messageClassName,
+          ].join(
+            " ",
+          )}
+        >
+          <div className="flex items-start gap-3">
+            <StatusIcon className="mt-0.5 size-4 shrink-0" />
+
+            <div>
+              <p className="text-sm font-bold">
+                {
+                  status.shortLabel
+                }
+              </p>
+
+              {status.message && (
+                <p className="mt-1 text-xs leading-5 opacity-90">
+                  {
+                    status.message
+                  }
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* MOTIVO DA RECUSA */}
+        {showRejectionReason && (
+          <div className="mt-4 rounded-2xl border border-[#E8CEC7] bg-[#FFF7F5] p-4">
+            <div className="flex items-start gap-3">
+              <TriangleAlert className="mt-0.5 size-4 shrink-0 text-[#984B3E]" />
+
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-[#984B3E]">
                   Motivo da recusa
                 </p>
 
@@ -413,50 +514,64 @@ function AppointmentCard({
                       .rejectionReason
                   }
                 </p>
-              </div>
-            )}
 
-            {showCancellationReason && (
-              <div className="mt-5 rounded-2xl border border-[#DDD8D0] bg-[#F8F6F2] p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-[#69645D]">
-                  Motivo do cancelamento
-                </p>
-
-                <p className="mt-2 text-sm leading-6 text-[#69645D]">
-                  {
-                    appointment
-                      .cancellationReason
-                  }
-                </p>
+                <Link
+                  href="/cliente/agendar"
+                  className="mt-3 inline-flex min-h-9 items-center justify-center rounded-xl bg-[#984B3E] px-3 text-xs font-semibold text-white transition hover:bg-[#813E34]"
+                >
+                  Escolher outro horário
+                </Link>
               </div>
-            )}
+            </div>
           </div>
+        )}
 
-          <div className="border-t border-[#EEEAE1] pt-4 sm:min-w-40 sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0">
-            <p className="text-xs font-medium uppercase tracking-wide text-[#92978E]">
+        {/* MOTIVO DO CANCELAMENTO */}
+        {showCancellationReason && (
+          <div className="mt-4 rounded-2xl border border-[#DDD8D0] bg-[#F8F6F2] p-4">
+            <p className="text-xs font-bold uppercase tracking-wide text-[#69645D]">
+              Motivo do cancelamento
+            </p>
+
+            <p className="mt-2 text-sm leading-6 text-[#69645D]">
+              {
+                appointment
+                  .cancellationReason
+              }
+            </p>
+          </div>
+        )}
+
+        {/* VALOR */}
+        <div className="mt-5 flex items-end justify-between gap-4 border-t border-[#EEEAE1] pt-4">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#92978E]">
               {showStartingFrom
                 ? "Valor inicial"
                 : appointment.status ===
-                  APPOINTMENT_STATUS.COMPLETED
+                    APPOINTMENT_STATUS
+                      .COMPLETED
                   ? "Valor final"
                   : "Valor"}
             </p>
 
             {showStartingFrom && (
-              <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#788273]">
+              <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-[#788273]">
                 A partir de
               </p>
             )}
 
-            <p className="mt-1 text-lg font-bold text-[#304229]">
+            <p className="mt-1 text-xl font-bold text-[#304229]">
               {formatPrice(
                 appointment
                   .chargedPriceCents,
               )}
             </p>
+          </div>
 
+          <div className="text-right">
             {hasSpecialPrice && (
-              <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-[#F5EBD2] px-2.5 py-1 text-[11px] font-semibold text-[#8A6A2F]">
+              <span className="inline-flex items-center gap-1 rounded-full bg-[#F5EBD2] px-2.5 py-1 text-[11px] font-semibold text-[#8A6A2F]">
                 <Tag className="size-3" />
 
                 Seu preço
@@ -464,7 +579,7 @@ function AppointmentCard({
             )}
 
             {showStartingFrom && (
-              <p className="mt-2 max-w-40 text-[11px] leading-4 text-[#7A8075]">
+              <p className="mt-2 max-w-36 text-[10px] leading-4 text-[#7A8075]">
                 O valor final pode variar.
               </p>
             )}
@@ -477,11 +592,11 @@ function AppointmentCard({
 
 export default function ClientAppointmentsPage() {
   const [
-    showAllHistory,
-    setShowAllHistory,
+    filter,
+    setFilter,
   ] =
-    useState(
-      false,
+    useState<AppointmentFilter>(
+      "ALL",
     );
 
   const {
@@ -493,18 +608,9 @@ export default function ClientAppointmentsPage() {
   } =
     useClientAppointments();
 
-  /*
-   * Utilizamos o catálogo também
-   * como fallback para agendamentos
-   * antigos que ainda não possuem
-   * servicePriceTypeSnapshot.
-   *
-   * Agendamentos novos não dependem
-   * desse fallback.
-   */
   const {
     data:
-    services = [],
+      services = [],
   } =
     useClientBookableServices();
 
@@ -516,27 +622,62 @@ export default function ClientAppointmentsPage() {
     data?.history ??
     [];
 
-  /*
-   * Por padrão mostramos somente
-   * os três registros mais recentes.
-   *
-   * Isso evita que a tela da cliente
-   * fique enorme depois de vários
-   * atendimentos.
-   */
-  const visibleHistory =
-    showAllHistory
-      ? history
-      : history.slice(
-        0,
-        HISTORY_PREVIEW_LIMIT,
-      );
+  const allAppointments = [
+    ...upcoming,
+    ...history,
+  ];
 
-  const hiddenHistoryCount =
-    Math.max(
-      history.length -
-      HISTORY_PREVIEW_LIMIT,
-      0,
+  const pending =
+    allAppointments.filter(
+      (
+        appointment,
+      ) =>
+        appointment.status ===
+        APPOINTMENT_STATUS
+          .PENDING_APPROVAL,
+    );
+
+  const confirmed =
+    allAppointments.filter(
+      (
+        appointment,
+      ) =>
+        appointment.status ===
+          APPOINTMENT_STATUS
+            .CONFIRMED ||
+        appointment.status ===
+          APPOINTMENT_STATUS
+            .IN_PROGRESS,
+    );
+
+  const rejected =
+    allAppointments.filter(
+      (
+        appointment,
+      ) =>
+        appointment.status ===
+        APPOINTMENT_STATUS
+          .REJECTED,
+    );
+
+  const completed =
+    allAppointments.filter(
+      (
+        appointment,
+      ) =>
+        appointment.status ===
+        APPOINTMENT_STATUS
+          .COMPLETED,
+    );
+
+  const cancelled =
+    allAppointments.filter(
+      (
+        appointment,
+      ) =>
+        appointment.status ===
+        APPOINTMENT_STATUS
+          .CANCELLED,
     );
 
   function getFallbackPriceType(
@@ -552,8 +693,114 @@ export default function ClientAppointmentsPage() {
     )?.priceType;
   }
 
+  function getFilteredAppointments():
+    Appointment[] {
+    switch (
+      filter
+    ) {
+      case "PENDING":
+        return pending;
+
+      case "CONFIRMED":
+        return confirmed;
+
+      case "REJECTED":
+        return rejected;
+
+      case "COMPLETED":
+        return completed;
+
+      case "CANCELLED":
+        return cancelled;
+
+      default:
+        return allAppointments;
+    }
+  }
+
+  const filteredAppointments =
+    getFilteredAppointments();
+
+  const filters: {
+    id:
+      AppointmentFilter;
+
+    label:
+      string;
+
+    count:
+      number;
+  }[] = [
+    {
+      id:
+        "ALL",
+
+      label:
+        "Todos",
+
+      count:
+        allAppointments
+          .length,
+    },
+
+    {
+      id:
+        "PENDING",
+
+      label:
+        "Aguardando",
+
+      count:
+        pending.length,
+    },
+
+    {
+      id:
+        "CONFIRMED",
+
+      label:
+        "Confirmados",
+
+      count:
+        confirmed.length,
+    },
+
+    {
+      id:
+        "REJECTED",
+
+      label:
+        "Recusados",
+
+      count:
+        rejected.length,
+    },
+
+    {
+      id:
+        "COMPLETED",
+
+      label:
+        "Concluídos",
+
+      count:
+        completed.length,
+    },
+
+    {
+      id:
+        "CANCELLED",
+
+      label:
+        "Cancelados",
+
+      count:
+        cancelled.length,
+    },
+  ];
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-7 sm:space-y-8">
       {/* CABEÇALHO */}
       <section className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
@@ -566,16 +813,16 @@ export default function ClientAppointmentsPage() {
           </h1>
 
           <p className="mt-2 max-w-2xl text-sm leading-6 text-[#71776D]">
-            Acompanhe seus próximos
-            horários, confirmações,
-            recusas e atendimentos
-            anteriores.
+            Veja rapidamente o que está
+            aguardando confirmação, o que
+            foi confirmado e todo o seu
+            histórico.
           </p>
         </div>
 
         <Link
           href="/cliente/agendar"
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#304229] px-5 text-sm font-semibold text-white transition hover:bg-[#25351F]"
+          className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#304229] px-5 text-sm font-semibold text-white transition hover:bg-[#25351F] sm:w-auto"
         >
           <CalendarPlus className="size-4" />
 
@@ -590,8 +837,7 @@ export default function ClientAppointmentsPage() {
             <LoaderCircle className="mx-auto size-7 animate-spin text-[#304229]" />
 
             <p className="mt-3 text-sm text-[#71776D]">
-              Carregando seus
-              agendamentos...
+              Carregando seus agendamentos...
             </p>
           </div>
         </section>
@@ -600,7 +846,7 @@ export default function ClientAppointmentsPage() {
       {/* ERRO */}
       {!isLoading &&
         isError && (
-          <section className="rounded-3xl border border-[#E8D4CF] bg-white p-6 shadow-sm">
+          <section className="rounded-3xl border border-[#E8D4CF] bg-white p-5 shadow-sm sm:p-6">
             <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
               <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-[#FAECE8] text-[#9A4B3E]">
                 <TriangleAlert className="size-5" />
@@ -608,14 +854,11 @@ export default function ClientAppointmentsPage() {
 
               <div className="flex-1">
                 <h2 className="font-semibold text-[#263620]">
-                  Não foi possível
-                  carregar seus
-                  agendamentos
+                  Não foi possível carregar seus agendamentos
                 </h2>
 
                 <p className="mt-1 text-sm leading-6 text-[#71776D]">
-                  Verifique sua conexão
-                  e tente novamente.
+                  Verifique sua conexão e tente novamente.
                 </p>
               </div>
 
@@ -627,7 +870,7 @@ export default function ClientAppointmentsPage() {
                 onClick={() =>
                   void refetch()
                 }
-                className="inline-flex min-h-10 items-center justify-center rounded-xl border border-[#D8D3C8] px-4 text-sm font-semibold text-[#304229] transition hover:bg-[#F6F4EE] disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[#D8D3C8] px-4 text-sm font-semibold text-[#304229] transition hover:bg-[#F6F4EE] disabled:opacity-50"
               >
                 {isFetching
                   ? "Tentando..."
@@ -640,147 +883,373 @@ export default function ClientAppointmentsPage() {
       {!isLoading &&
         !isError && (
           <>
-            {/* PRÓXIMOS */}
+            {/* RESUMO */}
             <section>
-              <div className="mb-4 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-[#7A8075]">
-                    Agenda
-                  </p>
+              <div className="mb-3">
+                <p className="text-sm font-medium text-[#7A8075]">
+                  Visão geral
+                </p>
 
-                  <h2 className="mt-1 text-xl font-bold text-[#263620]">
-                    Próximos
-                  </h2>
-                </div>
-
-                {upcoming.length >
-                  0 && (
-                    <div className="flex size-9 items-center justify-center rounded-full bg-[#EEF1EA] text-sm font-bold text-[#304229]">
-                      {
-                        upcoming.length
-                      }
-                    </div>
-                  )}
+                <h2 className="mt-1 text-lg font-bold text-[#263620]">
+                  Situação dos seus pedidos
+                </h2>
               </div>
 
-              {upcoming.length ===
-                0 ? (
-                <div className="rounded-3xl border border-[#E5E0D5] bg-white p-6 shadow-sm sm:p-7">
-                  <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-                    <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-[#EEF1EA] text-[#304229]">
-                      <CalendarDays className="size-5" />
+              <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFilter(
+                      "PENDING",
+                    )
+                  }
+                  className="rounded-2xl border border-[#E9D8A6] bg-[#FFF9EA] p-4 text-left transition active:scale-[0.98] sm:p-5"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex size-9 items-center justify-center rounded-xl bg-white text-[#8A6A2F]">
+                      <Clock3 className="size-4" />
                     </div>
 
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-[#263620]">
+                    <span className="text-2xl font-bold text-[#8A6A2F]">
+                      {
+                        pending.length
+                      }
+                    </span>
+                  </div>
+
+                  <p className="mt-3 text-xs font-bold text-[#65501F] sm:text-sm">
+                    Aguardando
+                  </p>
+
+                  <p className="mt-1 text-[11px] leading-4 text-[#8A774D]">
+                    Aguardando resposta
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFilter(
+                      "CONFIRMED",
+                    )
+                  }
+                  className="rounded-2xl border border-[#C9D9C4] bg-[#F2F7EF] p-4 text-left transition active:scale-[0.98] sm:p-5"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex size-9 items-center justify-center rounded-xl bg-white text-[#36542E]">
+                      <CheckCircle2 className="size-4" />
+                    </div>
+
+                    <span className="text-2xl font-bold text-[#36542E]">
+                      {
+                        confirmed.length
+                      }
+                    </span>
+                  </div>
+
+                  <p className="mt-3 text-xs font-bold text-[#36542E] sm:text-sm">
+                    Confirmados
+                  </p>
+
+                  <p className="mt-1 text-[11px] leading-4 text-[#6B7F65]">
+                    Horários confirmados
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFilter(
+                      "REJECTED",
+                    )
+                  }
+                  className="rounded-2xl border border-[#E8CEC7] bg-[#FFF6F4] p-4 text-left transition active:scale-[0.98] sm:p-5"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex size-9 items-center justify-center rounded-xl bg-white text-[#984B3E]">
+                      <CircleX className="size-4" />
+                    </div>
+
+                    <span className="text-2xl font-bold text-[#984B3E]">
+                      {
+                        rejected.length
+                      }
+                    </span>
+                  </div>
+
+                  <p className="mt-3 text-xs font-bold text-[#984B3E] sm:text-sm">
+                    Recusados
+                  </p>
+
+                  <p className="mt-1 text-[11px] leading-4 text-[#9B7169]">
+                    Pedidos não confirmados
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFilter(
+                      "COMPLETED",
+                    )
+                  }
+                  className="rounded-2xl border border-[#DDE2DA] bg-[#F6F8F5] p-4 text-left transition active:scale-[0.98] sm:p-5"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex size-9 items-center justify-center rounded-xl bg-white text-[#596454]">
+                      <History className="size-4" />
+                    </div>
+
+                    <span className="text-2xl font-bold text-[#596454]">
+                      {
+                        completed.length
+                      }
+                    </span>
+                  </div>
+
+                  <p className="mt-3 text-xs font-bold text-[#596454] sm:text-sm">
+                    Concluídos
+                  </p>
+
+                  <p className="mt-1 text-[11px] leading-4 text-[#7E887A]">
+                    Atendimentos realizados
+                  </p>
+                </button>
+              </div>
+            </section>
+
+            {/* FILTROS */}
+            <section>
+              <div className="-mx-4 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
+                <div className="flex min-w-max gap-2 sm:min-w-0 sm:flex-wrap">
+                  {filters.map(
+                    (
+                      item,
+                    ) => {
+                      const active =
+                        filter ===
+                        item.id;
+
+                      return (
+                        <button
+                          key={
+                            item.id
+                          }
+                          type="button"
+                          onClick={() =>
+                            setFilter(
+                              item.id,
+                            )
+                          }
+                          className={[
+                            "inline-flex min-h-10 items-center gap-2 rounded-full border px-4 text-xs font-semibold transition",
+
+                            active
+                              ? "border-[#304229] bg-[#304229] text-white"
+                              : "border-[#DDD8CE] bg-white text-[#62685E] hover:border-[#BCC5B7]",
+                          ].join(
+                            " ",
+                          )}
+                        >
+                          {
+                            item.label
+                          }
+
+                          <span
+                            className={[
+                              "flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-bold",
+
+                              active
+                                ? "bg-white/15 text-white"
+                                : "bg-[#F2F1EC] text-[#73786F]",
+                            ].join(
+                              " ",
+                            )}
+                          >
+                            {
+                              item.count
+                            }
+                          </span>
+                        </button>
+                      );
+                    },
+                  )}
+                </div>
+              </div>
+            </section>
+
+            {/* TODOS */}
+            {filter ===
+              "ALL" ? (
+              <div className="space-y-8">
+                {/* EM ANDAMENTO */}
+                <section>
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-[#7A8075]">
+                        Agora
+                      </p>
+
+                      <h2 className="mt-1 text-xl font-bold text-[#263620]">
+                        Solicitações e próximos horários
+                      </h2>
+                    </div>
+
+                    {upcoming.length >
+                      0 && (
+                        <span className="flex min-w-8 items-center justify-center rounded-full bg-[#EEF1EA] px-2.5 py-1 text-xs font-bold text-[#304229]">
+                          {
+                            upcoming.length
+                          }
+                        </span>
+                      )}
+                  </div>
+
+                  {upcoming.length ===
+                    0 ? (
+                    <div className="rounded-3xl border border-[#E5E0D5] bg-white p-6 text-center shadow-sm">
+                      <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-[#EEF1EA] text-[#304229]">
+                        <CalendarDays className="size-5" />
+                      </div>
+
+                      <h3 className="mt-4 font-semibold text-[#263620]">
                         Nenhum agendamento próximo
                       </h3>
 
-                      <p className="mt-1 text-sm leading-6 text-[#71776D]">
-                        Quando você solicitar um novo
-                        horário, ele aparecerá aqui.
+                      <p className="mx-auto mt-1 max-w-md text-sm leading-6 text-[#71776D]">
+                        Quando você solicitar um novo horário,
+                        ele aparecerá aqui para acompanhamento.
+                      </p>
+
+                      <Link
+                        href="/cliente/agendar"
+                        className="mt-4 inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#304229] px-4 text-sm font-semibold text-white"
+                      >
+                        <CalendarPlus className="size-4" />
+
+                        Agendar horário
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="grid gap-4 lg:grid-cols-2">
+                      {upcoming.map(
+                        (
+                          appointment,
+                        ) => (
+                          <AppointmentCard
+                            key={
+                              appointment.id
+                            }
+                            appointment={
+                              appointment
+                            }
+                            fallbackPriceType={
+                              getFallbackPriceType(
+                                appointment,
+                              )
+                            }
+                          />
+                        ),
+                      )}
+                    </div>
+                  )}
+                </section>
+
+                {/* HISTÓRICO */}
+                <section>
+                  <div className="mb-4">
+                    <div className="flex items-center gap-2">
+                      <History className="size-4 text-[#7A8075]" />
+
+                      <p className="text-sm font-medium text-[#7A8075]">
+                        Histórico
                       </p>
                     </div>
 
-                    <Link
-                      href="/cliente/agendar"
-                      className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[#D8D3C8] px-4 text-sm font-semibold text-[#304229] transition hover:bg-[#F6F4EE]"
-                    >
-                      <CalendarPlus className="size-4" />
+                    <h2 className="mt-1 text-xl font-bold text-[#263620]">
+                      Agendamentos anteriores
+                    </h2>
 
-                      Agendar
-                    </Link>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {upcoming.map(
-                    (
-                      appointment,
-                    ) => (
-                      <AppointmentCard
-                        key={
-                          appointment.id
-                        }
-                        appointment={
-                          appointment
-                        }
-                        fallbackPriceType={
-                          getFallbackPriceType(
-                            appointment,
-                          )
-                        }
-                      />
-                    ),
-                  )}
-                </div>
-              )}
-            </section>
-
-            {/* HISTÓRICO */}
-            <section>
-              {/* CABEÇALHO DO HISTÓRICO */}
-              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <History className="size-4 text-[#7A8075]" />
-
-                    <p className="text-sm font-medium text-[#7A8075]">
-                      Histórico
+                    <p className="mt-1 text-sm leading-6 text-[#7A8075]">
+                      Recusados, concluídos e cancelados ficam registrados aqui.
                     </p>
                   </div>
 
-                  <h2 className="mt-1 text-xl font-bold text-[#263620]">
-                    Histórico de agendamentos
-                  </h2>
+                  {history.length ===
+                    0 ? (
+                    <div className="rounded-3xl border border-dashed border-[#D8D3C8] bg-[#FBFAF7] p-6 text-center">
+                      <History className="mx-auto size-6 text-[#7A8075]" />
 
-                  <p className="mt-1 max-w-xl text-sm leading-6 text-[#7A8075]">
-                    Consulte seus atendimentos
-                    concluídos, recusados ou
-                    cancelados.
-                  </p>
-                </div>
-
-                {history.length >
-                  0 && (
-                    <span className="inline-flex w-fit items-center justify-center rounded-full border border-[#E2DDD3] bg-[#FBFAF7] px-3 py-1.5 text-xs font-semibold text-[#62685E]">
-                      {history.length}{" "}
-                      {history.length ===
-                        1
-                        ? "registro"
-                        : "registros"}
-                    </span>
-                  )}
-              </div>
-
-              {/* HISTÓRICO VAZIO */}
-              {history.length ===
-                0 ? (
-                <div className="rounded-3xl border border-dashed border-[#D8D3C8] bg-[#FBFAF7] p-6 sm:p-7">
-                  <div className="flex flex-col items-center text-center sm:flex-row sm:text-left">
-                    <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-[#EEF1EA] text-[#607456]">
-                      <History className="size-5" />
-                    </div>
-
-                    <div className="mt-4 sm:ml-4 sm:mt-0">
-                      <h3 className="font-semibold text-[#394035]">
-                        Você ainda não possui histórico
+                      <h3 className="mt-3 font-semibold text-[#394035]">
+                        Nenhum histórico ainda
                       </h3>
 
-                      <p className="mt-1 max-w-lg text-sm leading-6 text-[#7A8075]">
-                        Depois que um agendamento
-                        for concluído, recusado ou
-                        cancelado, ele ficará
-                        disponível aqui para consulta.
+                      <p className="mt-1 text-sm text-[#7A8075]">
+                        Seus atendimentos anteriores aparecerão aqui.
                       </p>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="grid gap-4 lg:grid-cols-2">
+                      {history.map(
+                        (
+                          appointment,
+                        ) => (
+                          <AppointmentCard
+                            key={
+                              appointment.id
+                            }
+                            appointment={
+                              appointment
+                            }
+                            fallbackPriceType={
+                              getFallbackPriceType(
+                                appointment,
+                              )
+                            }
+                          />
+                        ),
+                      )}
+                    </div>
+                  )}
+                </section>
+              </div>
+            ) : (
+              /* RESULTADO DO FILTRO */
+              <section>
+                <div className="mb-4">
+                  <p className="text-sm font-medium text-[#7A8075]">
+                    Resultado
+                  </p>
+
+                  <h2 className="mt-1 text-xl font-bold text-[#263620]">
+                    {
+                      filters.find(
+                        (
+                          item,
+                        ) =>
+                          item.id ===
+                          filter,
+                      )?.label
+                    }
+                  </h2>
                 </div>
-              ) : (
-                <div className="overflow-hidden rounded-3xl border border-[#E5E0D5] bg-[#F9F8F4]">
-                  {/* REGISTROS */}
-                  <div className="space-y-4 p-3 sm:p-4">
-                    {visibleHistory.map(
+
+                {filteredAppointments.length ===
+                  0 ? (
+                  <div className="rounded-3xl border border-dashed border-[#D8D3C8] bg-[#FBFAF7] p-7 text-center">
+                    <CalendarDays className="mx-auto size-6 text-[#7A8075]" />
+
+                    <h3 className="mt-3 font-semibold text-[#394035]">
+                      Nenhum agendamento nesta categoria
+                    </h3>
+
+                    <p className="mt-1 text-sm text-[#7A8075]">
+                      Você não possui registros com esse status.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    {filteredAppointments.map(
                       (
                         appointment,
                       ) => (
@@ -800,49 +1269,9 @@ export default function ClientAppointmentsPage() {
                       ),
                     )}
                   </div>
-
-                  {/* VER MAIS */}
-                  {history.length >
-                    HISTORY_PREVIEW_LIMIT && (
-                      <div className="border-t border-[#E8E3D9] bg-white p-3">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setShowAllHistory(
-                              (
-                                current,
-                              ) =>
-                                !current,
-                            )
-                          }
-                          className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold text-[#304229] transition hover:bg-[#F4F6F1]"
-                        >
-                          {showAllHistory ? (
-                            <>
-                              <ChevronUp className="size-4" />
-
-                              Mostrar menos
-                            </>
-                          ) : (
-                            <>
-                              <ChevronDown className="size-4" />
-
-                              Ver mais{" "}
-                              {
-                                hiddenHistoryCount
-                              }{" "}
-                              {hiddenHistoryCount ===
-                                1
-                                ? "agendamento"
-                                : "agendamentos"}
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    )}
-                </div>
-              )}
-            </section>
+                )}
+              </section>
+            )}
           </>
         )}
     </div>

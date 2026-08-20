@@ -15,6 +15,10 @@ import {
 } from "react";
 
 import {
+    AdminPageHeader,
+} from "@/components/admin/AdminPageHeader";
+
+import {
     Button,
 } from "@/components/ui/button";
 
@@ -342,33 +346,15 @@ export function SpecialPricesPageContent() {
         "all";
 
     return (
-        <main className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10 xl:px-10">
+        <main className="w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-8 xl:px-10">
             {/* CABEÇALHO */}
-            <header>
-                <div className="flex items-center gap-3">
-                    <div className="flex size-11 items-center justify-center rounded-xl bg-[#304229] text-white shadow-sm">
-                        <BadgeDollarSign className="size-5" />
-                    </div>
-
-                    <div>
-                        <p className="text-sm text-[#73776D]">
-                            Administração
-                        </p>
-
-                        <h1 className="text-2xl font-semibold text-[#20241D]">
-                            Preços especiais
-                        </h1>
-                    </div>
-                </div>
-
-                <p className="mt-4 max-w-2xl text-sm leading-6 text-[#73776D]">
-                    Consulte as clientes
-                    que possuem valores
-                    especiais cadastrados
-                    para os serviços do
-                    salão.
-                </p>
-            </header>
+            <AdminPageHeader
+                eyebrow="Administração"
+                title="Preços especiais"
+                description="Consulte as clientes que possuem valores especiais cadastrados para os serviços do salão."
+                badgeLabel="Valores personalizados"
+                badgeIcon={BadgeDollarSign}
+            />
 
             {/* CARDS DE RESUMO */}
             {isLoading ? (

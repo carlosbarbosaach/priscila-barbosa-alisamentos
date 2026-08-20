@@ -17,6 +17,10 @@ import {
 } from "lucide-react";
 
 import {
+    AdminPageHeader,
+} from "@/components/admin/AdminPageHeader";
+
+import {
     Button,
 } from "@/components/ui/button";
 
@@ -290,31 +294,13 @@ export function AdminReportsPageContent() {
     return (
         <main className="w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-8 xl:px-10">
             {/* CABEÇALHO */}
-            <header>
-                <div className="flex items-center gap-3">
-                    <div className="flex size-11 items-center justify-center rounded-xl bg-[#304229] text-white">
-                        <TrendingUp className="size-5" />
-                    </div>
-
-                    <div>
-                        <p className="text-sm text-muted-foreground">
-                            Administração
-                        </p>
-
-                        <h1 className="text-2xl font-semibold">
-                            Relatórios
-                        </h1>
-                    </div>
-                </div>
-
-                <p className="mt-4 max-w-2xl text-sm leading-6 text-muted-foreground">
-                    Acompanhe os
-                    agendamentos,
-                    atendimentos e a
-                    receita realizada
-                    pelo salão.
-                </p>
-            </header>
+            <AdminPageHeader
+                eyebrow="Administração"
+                title="Relatórios"
+                description="Acompanhe os agendamentos, atendimentos e a receita realizada pelo salão."
+                badgeLabel="Desempenho do salão"
+                badgeIcon={TrendingUp}
+            />
 
             {/* PERÍODO */}
             <section className="mt-7 rounded-2xl border border-[#E3E7E0] bg-white p-4 shadow-sm">

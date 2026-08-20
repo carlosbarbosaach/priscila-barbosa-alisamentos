@@ -51,15 +51,11 @@ export type Service = {
   /*
    * Valor base do serviço.
    *
-   * Exemplo:
+   * FIXED:
+   * R$ 250,00
    *
-   * FIXED
-   * defaultPriceCents = 25000
-   * → R$ 250,00
-   *
-   * STARTING_FROM
-   * defaultPriceCents = 50000
-   * → A partir de R$ 500,00
+   * STARTING_FROM:
+   * A partir de R$ 500,00
    */
   defaultPriceCents:
     number;
@@ -72,16 +68,43 @@ export type Service = {
     ServicePriceType;
 
   /*
-   * Etapas operacionais do serviço.
+   * =================================
+   * PROMOÇÃO
+   * =================================
+   *
+   * promotionActive:
+   * informa se a promoção está
+   * atualmente ativa.
+   *
+   * promotionPriceCents:
+   * valor promocional do serviço.
+   *
+   * promotionLabel:
+   * texto exibido na badge.
    *
    * Exemplo:
    *
-   * Aplicação       60 min  ocupa
-   * Ação produto    45 min  libera
-   * Finalização     75 min  ocupa
+   * promotionActive = true
+   * promotionPriceCents = 25000
+   * promotionLabel = "Promoção"
    *
-   * Serviço antigo sem configuração:
-   * phases = []
+   * Normal:
+   * R$ 300,00
+   *
+   * Promoção:
+   * R$ 250,00
+   */
+  promotionActive:
+    boolean;
+
+  promotionPriceCents:
+    number | null;
+
+  promotionLabel:
+    string | null;
+
+  /*
+   * Etapas operacionais do serviço.
    */
   phases:
     ServicePhase[];

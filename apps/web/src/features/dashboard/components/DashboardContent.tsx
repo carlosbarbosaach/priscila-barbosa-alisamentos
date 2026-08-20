@@ -48,7 +48,7 @@ export function DashboardContent() {
     pendingApproval > 0;
 
   return (
-    <main className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10 xl:px-10">
+    <main className="w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-8 xl:px-10">
       {/* CABEÇALHO */}
       <DashboardHeader />
 
@@ -153,7 +153,7 @@ export function DashboardContent() {
 
                       <h2 className="mt-1 text-lg font-bold text-[#3B321F] sm:text-xl">
                         {pendingApproval ===
-                        1
+                          1
                           ? "1 solicitação aguardando confirmação"
                           : `${pendingApproval} solicitações aguardando confirmação`}
                       </h2>
@@ -172,14 +172,14 @@ export function DashboardContent() {
                     <div className="flex shrink-0 items-center gap-3 sm:flex-col sm:items-end">
                       <div className="flex min-w-14 items-center justify-center rounded-2xl bg-[#8A6A2F] px-4 py-3 text-2xl font-bold tabular-nums text-white shadow-sm">
                         {pendingApproval >
-                        99
+                          99
                           ? "99+"
                           : pendingApproval}
                       </div>
 
                       <span className="text-xs font-semibold text-[#8A6A2F]">
                         {pendingApproval ===
-                        1
+                          1
                           ? "pendente"
                           : "pendentes"}
                       </span>

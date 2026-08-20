@@ -16,13 +16,19 @@ import {
 } from "../services/service.repository.js";
 
 type ResolveAppointmentPriceInput = {
-  salonId: string;
-  clientId: string;
-  serviceId: string;
+  salonId:
+    string;
+
+  clientId:
+    string;
+
+  serviceId:
+    string;
 };
 
 export type ResolvedAppointmentPrice = {
-  priceCents: number;
+  priceCents:
+    number;
 
   priceSource:
     AppointmentPriceSource;
@@ -41,23 +47,30 @@ export class AppointmentPriceResolverService {
   ) {}
 
   async resolve(
-    input: ResolveAppointmentPriceInput,
-  ): Promise<ResolvedAppointmentPrice> {
+    input:
+      ResolveAppointmentPriceInput,
+  ): Promise<
+    ResolvedAppointmentPrice
+  > {
     const {
       salonId,
       clientId,
       serviceId,
-    } = input;
+    } =
+      input;
 
     /*
-     * 1. A cliente precisa existir
-     * no mesmo salão.
+     * =================================
+     * 1. CLIENTE
+     * =================================
      */
     const client =
-      await this.clientRepository.findById(
-        salonId,
-        clientId,
-      );
+      await this
+        .clientRepository
+        .findById(
+          salonId,
+          clientId,
+        );
 
     if (!client) {
       throw new Error(
@@ -65,10 +78,6 @@ export class AppointmentPriceResolverService {
       );
     }
 
-    /*
-     * Cliente inativa não deve
-     * realizar novos agendamentos.
-     */
     if (!client.active) {
       throw new Error(
         "Cliente inativa não pode realizar novos agendamentos.",
@@ -76,14 +85,17 @@ export class AppointmentPriceResolverService {
     }
 
     /*
-     * 2. O serviço precisa existir
-     * dentro do mesmo salão.
+     * =================================
+     * 2. SERVIÇO
+     * =================================
      */
     const service =
-      await this.serviceRepository.findById(
-        salonId,
-        serviceId,
-      );
+      await this
+        .serviceRepository
+        .findById(
+          salonId,
+          serviceId,
+        );
 
     if (!service) {
       throw new Error(
@@ -91,10 +103,6 @@ export class AppointmentPriceResolverService {
       );
     }
 
-    /*
-     * Serviço inativo não pode
-     * receber novos agendamentos.
-     */
     if (!service.active) {
       throw new Error(
         "Serviço indisponível para novos agendamentos.",
@@ -102,15 +110,18 @@ export class AppointmentPriceResolverService {
     }
 
     /*
-     * Segurança de dados:
-     * preço padrão nunca pode ser
-     * negativo.
+     * =================================
+     * PREÇO PADRÃO
+     * =================================
      */
     if (
       !Number.isInteger(
-        service.defaultPriceCents,
+        service
+          .defaultPriceCents,
       ) ||
-      service.defaultPriceCents < 0
+      service
+        .defaultPriceCents <
+        0
     ) {
       throw new Error(
         "O serviço possui preço padrão inválido.",
@@ -118,31 +129,105 @@ export class AppointmentPriceResolverService {
     }
 
     /*
-     * 3. Procuramos preço especial
-     * específico desta combinação:
+     * Começamos sempre pelo
+     * preço normal do serviço.
+     */
+    let priceCents =
+      service
+        .defaultPriceCents;
+
+    let priceSource:
+      AppointmentPriceSource =
+      APPOINTMENT_PRICE_SOURCE
+        .SERVICE_DEFAULT;
+
+    /*
+     * =================================
+     * 3. PROMOÇÃO
+     * =================================
+     */
+    const promotionActive =
+      service
+        .promotionActive ??
+      false;
+
+    if (
+      promotionActive
+    ) {
+      const promotionPriceCents =
+        service
+          .promotionPriceCents;
+
+      if (
+        promotionPriceCents ===
+          undefined ||
+        promotionPriceCents ===
+          null ||
+        !Number.isInteger(
+          promotionPriceCents,
+        ) ||
+        promotionPriceCents <
+          0
+      ) {
+        throw new Error(
+          "O serviço possui preço promocional inválido.",
+        );
+      }
+
+      /*
+       * A promoção precisa ser
+       * menor que o valor normal.
+       *
+       * Esta proteção impede que
+       * uma alteração manual no
+       * Firestore gere cobrança
+       * incorreta.
+       */
+      if (
+        promotionPriceCents >=
+        service
+          .defaultPriceCents
+      ) {
+        throw new Error(
+          "O preço promocional precisa ser menor que o preço normal do serviço.",
+        );
+      }
+
+      priceCents =
+        promotionPriceCents;
+
+      priceSource =
+        APPOINTMENT_PRICE_SOURCE
+          .PROMOTION;
+    }
+
+    /*
+     * =================================
+     * 4. PREÇO ESPECIAL
+     * =================================
      *
-     * cliente + serviço.
+     * cliente + serviço
      */
     const specialPrice =
-      await this.priceRepository
+      await this
+        .priceRepository
         .findByClientAndService(
           salonId,
           clientId,
           serviceId,
         );
 
-    /*
-     * Existe preço especial ativo.
-     */
     if (
       specialPrice &&
       specialPrice.active
     ) {
       if (
         !Number.isInteger(
-          specialPrice.priceCents,
+          specialPrice
+            .priceCents,
         ) ||
-        specialPrice.priceCents <
+        specialPrice
+          .priceCents <
           0
       ) {
         throw new Error(
@@ -150,28 +235,51 @@ export class AppointmentPriceResolverService {
         );
       }
 
-      return {
-        priceCents:
-          specialPrice.priceCents,
+      /*
+       * =================================
+       * MENOR PREÇO VENCE
+       * =================================
+       *
+       * Exemplo:
+       *
+       * normal    300
+       * promoção  270
+       * especial  250
+       *
+       * ↓
+       *
+       * 250 CLIENT_SPECIAL
+       *
+       *
+       * Exemplo:
+       *
+       * normal    300
+       * promoção  220
+       * especial  250
+       *
+       * ↓
+       *
+       * 220 PROMOTION
+       */
+      if (
+        specialPrice
+          .priceCents <=
+        priceCents
+      ) {
+        priceCents =
+          specialPrice
+            .priceCents;
 
-        priceSource:
+        priceSource =
           APPOINTMENT_PRICE_SOURCE
-            .CLIENT_SPECIAL,
-      };
+            .CLIENT_SPECIAL;
+      }
     }
 
-    /*
-     * 4. Sem preço especial ativo:
-     * usamos o valor padrão atual
-     * do serviço.
-     */
     return {
-      priceCents:
-        service.defaultPriceCents,
+      priceCents,
 
-      priceSource:
-        APPOINTMENT_PRICE_SOURCE
-          .SERVICE_DEFAULT,
+      priceSource,
     };
   }
 }

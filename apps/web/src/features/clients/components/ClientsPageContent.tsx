@@ -3,7 +3,6 @@
 import {
     RefreshCw,
     Search,
-    UserRound,
     X,
 } from "lucide-react";
 
@@ -11,6 +10,8 @@ import {
     useMemo,
     useState,
 } from "react";
+
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -279,33 +280,14 @@ export function ClientsPageContent() {
 
     return (
         <main className="w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-8 xl:px-10">
-            <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                    <div className="flex items-center gap-3">
-                        <div className="flex size-11 items-center justify-center rounded-xl bg-[#304229] text-white">
-                            <UserRound className="size-5" />
-                        </div>
-
-                        <div>
-                            <p className="text-sm text-muted-foreground">
-                                Administração
-                            </p>
-
-                            <h1 className="text-2xl font-semibold">
-                                Clientes
-                            </h1>
-                        </div>
-                    </div>
-
-                    <p className="mt-4 max-w-xl text-sm leading-6 text-muted-foreground">
-                        Gerencie as clientes do
-                        salão, seus contatos e seus
-                        preços personalizados.
-                    </p>
-                </div>
-
-                <CreateClientDialog />
-            </header>
+            <AdminPageHeader
+                eyebrow="Administração"
+                title="Clientes"
+                description="Gerencie as clientes do salão, seus contatos e seus preços personalizados."
+                rightContent={
+                    <CreateClientDialog />
+                }
+            />
 
             <section className="mt-8 rounded-2xl border bg-white p-4 shadow-sm sm:p-5">
                 <div className="relative">

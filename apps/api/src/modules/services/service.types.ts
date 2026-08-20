@@ -43,23 +43,33 @@ export type ServiceDocument = {
     number;
 
   /*
-   * Opcional no documento porque
-   * serviços antigos do Firestore
-   * ainda não possuem esse campo.
-   *
-   * O Mapper fará:
-   *
-   * undefined
-   * ↓
-   * FIXED
+   * Opcional para compatibilidade
+   * com serviços antigos.
    */
   priceType?:
     ServicePriceType;
 
   /*
-   * Opcional para manter
-   * compatibilidade com serviços
-   * antigos.
+   * =================================
+   * PROMOÇÃO
+   * =================================
+   *
+   * Também opcionais no Firestore
+   * porque documentos antigos ainda
+   * não possuem esses campos.
+   */
+  promotionActive?:
+    boolean;
+
+  promotionPriceCents?:
+    number | null;
+
+  promotionLabel?:
+    string | null;
+
+  /*
+   * Opcional para compatibilidade
+   * com serviços antigos.
    */
   phases?:
     ServicePhaseDocument[];

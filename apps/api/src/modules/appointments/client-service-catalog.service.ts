@@ -18,10 +18,10 @@ import {
 
 type GetClientServiceCatalogInput = {
   salonId:
-    string;
+  string;
 
   clientId:
-    string;
+  string;
 };
 
 export class ClientServiceCatalogService {
@@ -34,7 +34,7 @@ export class ClientServiceCatalogService {
 
     private readonly priceRepository =
       new ClientServicePriceRepository(),
-  ) {}
+  ) { }
 
   async getCatalog(
     input:
@@ -52,7 +52,8 @@ export class ClientServiceCatalogService {
       !salonId ||
       salonId
         .trim()
-        .length === 0
+        .length ===
+      0
     ) {
       throw new Error(
         "Salão não informado.",
@@ -60,8 +61,9 @@ export class ClientServiceCatalogService {
     }
 
     /*
-     * 1. Confirma que a CLIENT
-     * realmente pertence ao salão.
+     * =================================
+     * 1. CLIENTE
+     * =================================
      */
     const client =
       await this
@@ -84,7 +86,11 @@ export class ClientServiceCatalogService {
     }
 
     /*
-     * 2. Fazemos somente duas consultas:
+     * =================================
+     * 2. DADOS NECESSÁRIOS
+     * =================================
+     *
+     * Mantemos somente duas consultas:
      *
      * - serviços do salão;
      * - preços especiais da cliente.
@@ -111,7 +117,7 @@ export class ClientServiceCatalogService {
     /*
      * serviceId
      * ↓
-     * preço especial ativo
+     * preço especial ativo.
      */
     const specialPriceByServiceId =
       new Map(
@@ -126,9 +132,9 @@ export class ClientServiceCatalogService {
             (
               price,
             ) => [
-              price.serviceId,
-              price,
-            ],
+                price.serviceId,
+                price,
+              ],
           ),
       );
 
@@ -148,6 +154,11 @@ export class ClientServiceCatalogService {
       (
         service,
       ) => {
+        /*
+         * =================================
+         * PREÇO PADRÃO
+         * =================================
+         */
         if (
           !Number.isInteger(
             service
@@ -155,13 +166,18 @@ export class ClientServiceCatalogService {
           ) ||
           service
             .defaultPriceCents <
-            0
+          0
         ) {
           throw new Error(
             `O serviço "${service.name}" possui preço inválido.`,
           );
         }
 
+        /*
+         * =================================
+         * DURAÇÃO
+         * =================================
+         */
         if (
           !Number.isInteger(
             service
@@ -169,7 +185,7 @@ export class ClientServiceCatalogService {
           ) ||
           service
             .durationMinutes <=
-            0
+          0
         ) {
           throw new Error(
             `O serviço "${service.name}" possui duração inválida.`,
@@ -177,32 +193,111 @@ export class ClientServiceCatalogService {
         }
 
         /*
-         * Compatibilidade com serviços
-         * antigos do Firestore.
+         * =================================
+         * TIPO DE PREÇO
+         * =================================
          *
-         * Se o documento ainda não tiver
-         * priceType:
-         *
-         * undefined
-         * ↓
-         * FIXED
+         * Serviço antigo sem priceType
+         * continua sendo FIXED.
          */
         const priceType =
           service.priceType ??
           SERVICE_PRICE_TYPES
             .FIXED;
 
+        /*
+         * =================================
+         * PROMOÇÃO
+         * =================================
+         *
+         * Serviços antigos:
+         *
+         * promotionActive
+         * undefined
+         *
+         * ↓
+         *
+         * false
+         */
+        const promotionActive =
+          service
+            .promotionActive ??
+          false;
+
+        let promotionPriceCents:
+          number | null =
+          null;
+
+        let promotionLabel:
+          string | null =
+          null;
+
+        if (
+          promotionActive
+        ) {
+          const rawPromotionPrice =
+            service
+              .promotionPriceCents;
+
+          /*
+           * Uma promoção ativa precisa
+           * possuir um preço válido.
+           */
+          if (
+            rawPromotionPrice ===
+            undefined ||
+            rawPromotionPrice ===
+            null ||
+            !Number.isInteger(
+              rawPromotionPrice,
+            ) ||
+            rawPromotionPrice <
+            0
+          ) {
+            throw new Error(
+              `A promoção do serviço "${service.name}" possui preço inválido.`,
+            );
+          }
+
+          /*
+           * Proteção contra inconsistência
+           * direta no Firestore.
+           *
+           * A promoção precisa ser
+           * realmente menor que o preço
+           * normal.
+           */
+          if (
+            rawPromotionPrice >=
+            service
+              .defaultPriceCents
+          ) {
+            throw new Error(
+              `A promoção do serviço "${service.name}" precisa ser menor que o preço normal.`,
+            );
+          }
+
+          promotionPriceCents =
+            rawPromotionPrice;
+
+          promotionLabel =
+            service
+              .promotionLabel
+              ?.trim() ||
+            "Promoção";
+        }
+
+        /*
+         * =================================
+         * PREÇO ESPECIAL
+         * =================================
+         */
         const specialPrice =
           specialPriceByServiceId
             .get(
               service.id,
             );
 
-        /*
-         * =================================
-         * PREÇO ESPECIAL DA CLIENTE
-         * =================================
-         */
         if (
           specialPrice
         ) {
@@ -213,59 +308,106 @@ export class ClientServiceCatalogService {
             ) ||
             specialPrice
               .priceCents <
-              0
+            0
           ) {
             throw new Error(
               `O preço especial do serviço "${service.name}" é inválido.`,
             );
           }
+        }
 
-          return {
-            id:
-              service.id,
+        /*
+ * =================================
+ * RESOLUÇÃO DO MELHOR PREÇO
+ * =================================
+ *
+ * Começamos sempre pelo preço
+ * normal.
+ */
+        let priceCents =
+          service
+            .defaultPriceCents;
 
-            name:
-              service.name,
+        let priceSource:
+          ClientBookableService["priceSource"] =
+          APPOINTMENT_PRICE_SOURCE
+            .SERVICE_DEFAULT;
 
-            description:
-              service
-                .description,
+        /*
+         * Se existir promoção válida
+         * e ela for menor, usamos promoção.
+         */
+        if (
+          promotionActive &&
+          promotionPriceCents !==
+          null &&
+          promotionPriceCents <
+          priceCents
+        ) {
+          priceCents =
+            promotionPriceCents;
 
-            category:
-              service.category,
-
-            durationMinutes:
-              service
-                .durationMinutes,
-
-            defaultPriceCents:
-              service
-                .defaultPriceCents,
-
-            /*
-             * Mesmo possuindo preço
-             * especial, enviamos o tipo
-             * original do serviço.
-             *
-             * O frontend poderá decidir
-             * que preço especial tem
-             * prioridade visual.
-             */
-            priceType,
-
-            priceCents:
-              specialPrice
-                .priceCents,
-
-            priceSource:
-              APPOINTMENT_PRICE_SOURCE
-                .CLIENT_SPECIAL,
-          };
+          priceSource =
+            APPOINTMENT_PRICE_SOURCE
+              .PROMOTION;
         }
 
         /*
          * =================================
-         * PREÇO PADRÃO DO SERVIÇO
+         * PREÇO ESPECIAL DA CLIENTE
+         * =================================
+         */
+        if (
+          specialPrice &&
+          specialPrice
+            .priceCents <=
+          priceCents
+        ) {
+          priceCents =
+            specialPrice
+              .priceCents;
+
+          priceSource =
+            APPOINTMENT_PRICE_SOURCE
+              .CLIENT_SPECIAL;
+        }
+
+        /*
+         * =================================
+         * PREÇO ESPECIAL DA CLIENTE
+         * =================================
+         *
+         * O menor preço vence.
+         *
+         * Utilizamos <= propositalmente.
+         *
+         * Se promoção e preço especial
+         * forem iguais, mantemos
+         * CLIENT_SPECIAL.
+         *
+         * Isso preserva a regra atual:
+         * preço especial é um valor
+         * personalizado e fechado para
+         * aquela cliente.
+         */
+        if (
+          specialPrice &&
+          specialPrice
+            .priceCents <=
+          priceCents
+        ) {
+          priceCents =
+            specialPrice
+              .priceCents;
+
+          priceSource =
+            APPOINTMENT_PRICE_SOURCE
+              .CLIENT_SPECIAL;
+        }
+
+        /*
+         * =================================
+         * CATÁLOGO DA CLIENTE
          * =================================
          */
         return {
@@ -292,13 +434,15 @@ export class ClientServiceCatalogService {
 
           priceType,
 
-          priceCents:
-            service
-              .defaultPriceCents,
+          promotionActive,
 
-          priceSource:
-            APPOINTMENT_PRICE_SOURCE
-              .SERVICE_DEFAULT,
+          promotionPriceCents,
+
+          promotionLabel,
+
+          priceCents,
+
+          priceSource,
         };
       },
     );

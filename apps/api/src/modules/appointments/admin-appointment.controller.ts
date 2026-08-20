@@ -326,6 +326,14 @@ export async function completeAdminAppointmentController(
  * PENDING_APPROVAL
  * ↓
  * REJECTED
+ *
+ * blockSlot = false
+ * ↓
+ * libera o horário.
+ *
+ * blockSlot = true
+ * ↓
+ * cria bloqueio administrativo.
  */
 export async function rejectAdminAppointmentController(
   request: FastifyRequest,
@@ -400,6 +408,11 @@ export async function rejectAdminAppointmentController(
             parsedBody
               .data
               .rejectionReason,
+
+          blockSlot:
+            parsedBody
+              .data
+              .blockSlot,
         });
 
     const appointment =

@@ -206,6 +206,21 @@ export async function confirmAppointment(
  * ==============================
  * ADMIN — RECUSAR
  * ==============================
+ *
+ * blockSlot = false
+ * ↓
+ * recusa e libera o horário.
+ *
+ * blockSlot = true
+ * ↓
+ * recusa e cria bloqueio
+ * administrativo.
+ *
+ * O campo permanece opcional
+ * temporariamente para manter
+ * compatibilidade com o modal
+ * enquanto fazemos a alteração
+ * visual no próximo passo.
  */
 
 export type RejectAppointmentInput = {
@@ -214,6 +229,9 @@ export type RejectAppointmentInput = {
 
   rejectionReason:
     string;
+
+  blockSlot?:
+    boolean;
 };
 
 export async function rejectAppointment(
@@ -231,6 +249,21 @@ export async function rejectAppointment(
           JSON.stringify({
             rejectionReason:
               input.rejectionReason,
+
+            /*
+             * Enquanto alguma tela antiga
+             * não enviar blockSlot,
+             * assumimos false.
+             *
+             * Portanto:
+             *
+             * recusar por padrão
+             * continua liberando
+             * o horário.
+             */
+            blockSlot:
+              input.blockSlot ??
+              false,
           }),
       },
     );

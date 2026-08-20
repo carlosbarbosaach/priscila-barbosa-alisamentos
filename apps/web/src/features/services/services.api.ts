@@ -39,6 +39,41 @@ export type UpdateServiceInput = {
         ServicePriceType;
 };
 
+/*
+ * =================================
+ * PROMOÇÃO
+ * =================================
+ *
+ * Ativar:
+ *
+ * {
+ *   active: true,
+ *   promotionPriceCents: 25000,
+ *   promotionLabel: "Promoção"
+ * }
+ *
+ * Retirar:
+ *
+ * {
+ *   active: false
+ * }
+ */
+export type UpdateServicePromotionInput =
+    | {
+          active:
+              true;
+
+          promotionPriceCents:
+              number;
+
+          promotionLabel?:
+              string | null;
+      }
+    | {
+          active:
+              false;
+      };
+
 export async function getServices(): Promise<
     Service[]
 > {
@@ -113,6 +148,35 @@ export async function updateServiceStatus(
                     JSON.stringify({
                         active,
                     }),
+            },
+        );
+
+    return response.service;
+}
+
+/*
+ * =================================
+ * ATIVAR / ALTERAR / RETIRAR PROMOÇÃO
+ * =================================
+ */
+export async function updateServicePromotion(
+    serviceId:
+        string,
+
+    input:
+        UpdateServicePromotionInput,
+): Promise<Service> {
+    const response =
+        await apiFetch<ServiceResponse>(
+            `/admin/services/${serviceId}/promotion`,
+            {
+                method:
+                    "PATCH",
+
+                body:
+                    JSON.stringify(
+                        input,
+                    ),
             },
         );
 

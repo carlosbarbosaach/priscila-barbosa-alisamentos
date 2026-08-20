@@ -22,6 +22,12 @@ import {
   startAdminAppointmentController,
 } from "./admin-appointment.controller.js";
 
+import {
+  createAdminScheduleBlockoutController,
+  listAdminScheduleBlockoutsController,
+  releaseAdminScheduleBlockoutController,
+} from "./admin-schedule-blockout.controller.js";
+
 const adminOnly = [
   authenticate,
 
@@ -39,9 +45,6 @@ export const adminAppointmentRoutes:
      * =================================
      * AGENDA DO DIA
      * =================================
-     *
-     * GET
-     * /api/v1/admin/appointments
      */
     app.get(
       "/",
@@ -54,12 +57,50 @@ export const adminAppointmentRoutes:
 
     /*
      * =================================
+     * LISTAR HORÁRIOS BLOQUEADOS
+     * =================================
+     */
+    app.get(
+      "/blockouts",
+      {
+        preHandler:
+          adminOnly,
+      },
+      listAdminScheduleBlockoutsController,
+    );
+
+    /*
+     * =================================
+     * CRIAR BLOQUEIO MANUAL
+     * =================================
+     */
+    app.post(
+      "/blockouts",
+      {
+        preHandler:
+          adminOnly,
+      },
+      createAdminScheduleBlockoutController,
+    );
+
+    /*
+     * =================================
+     * LIBERAR HORÁRIO
+     * =================================
+     */
+    app.delete(
+      "/blockouts",
+      {
+        preHandler:
+          adminOnly,
+      },
+      releaseAdminScheduleBlockoutController,
+    );
+
+    /*
+     * =================================
      * CONFIRMAR
      * =================================
-     *
-     * PENDING_APPROVAL
-     * ↓
-     * CONFIRMED
      */
     app.patch(
       "/:appointmentId/confirm",
@@ -74,10 +115,6 @@ export const adminAppointmentRoutes:
      * =================================
      * RECUSAR
      * =================================
-     *
-     * PENDING_APPROVAL
-     * ↓
-     * REJECTED
      */
     app.patch(
       "/:appointmentId/reject",
@@ -92,10 +129,6 @@ export const adminAppointmentRoutes:
      * =================================
      * INICIAR
      * =================================
-     *
-     * CONFIRMED
-     * ↓
-     * IN_PROGRESS
      */
     app.patch(
       "/:appointmentId/start",
@@ -110,20 +143,6 @@ export const adminAppointmentRoutes:
      * =================================
      * CONCLUIR
      * =================================
-     *
-     * IN_PROGRESS
-     * ↓
-     * COMPLETED
-     *
-     * Serviço FIXED:
-     *
-     * PATCH sem body.
-     *
-     * Serviço STARTING_FROM:
-     *
-     * {
-     *   "finalPriceCents": 65000
-     * }
      */
     app.patch(
       "/:appointmentId/complete",

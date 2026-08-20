@@ -9,12 +9,20 @@ import {
 } from "firebase-admin/firestore";
 
 import {
+  APPOINTMENT_CONFIG,
+} from "./appointment.config.js";
+
+import {
   AppointmentDayTransactionService,
 } from "./appointment-day-transaction.service.js";
 
 import {
   AppointmentRepository,
 } from "./appointment.repository.js";
+
+import {
+  ScheduleBlockoutRepository,
+} from "./schedule-blockout.repository.js";
 
 import type {
   AppointmentEntity,
@@ -138,6 +146,26 @@ type RejectAppointmentInput =
   AppointmentIdentificationInput & {
     rejectionReason:
       string;
+
+    /*
+     * false / undefined:
+     *
+     * o Appointment será recusado
+     * e o horário volta a ficar
+     * disponível.
+     *
+     * true:
+     *
+     * o Appointment será recusado
+     * e será criado um bloqueio
+     * administrativo separado.
+     *
+     * É opcional temporariamente para
+     * manter compatibilidade com o
+     * Controller/frontend atual.
+     */
+    blockSlot?:
+      boolean;
   };
 
 type CompleteAppointmentInput =
@@ -162,6 +190,9 @@ export class AdminAppointmentDecisionService {
 
     private readonly dayTransactionService =
       new AppointmentDayTransactionService(),
+
+    private readonly scheduleBlockoutRepository =
+      new ScheduleBlockoutRepository(),
   ) {}
 
   /*
@@ -272,6 +303,15 @@ export class AdminAppointmentDecisionService {
    * PENDING_APPROVAL
    * ↓
    * REJECTED
+   *
+   * blockSlot = false
+   * ↓
+   * horário fica disponível.
+   *
+   * blockSlot = true
+   * ↓
+   * cria ScheduleBlockout
+   * para data + horário.
    */
   async reject(
     input:
@@ -302,6 +342,17 @@ export class AdminAppointmentDecisionService {
       );
     }
 
+    /*
+     * Enquanto o frontend ainda não
+     * envia blockSlot, o comportamento
+     * continua exatamente como antes:
+     *
+     * recusar = liberar horário.
+     */
+    const blockSlot =
+      input.blockSlot ??
+      false;
+
     const preliminaryAppointment =
       await this
         .getPreliminaryAppointment(
@@ -323,6 +374,11 @@ export class AdminAppointmentDecisionService {
         async (
           transaction,
         ) => {
+          /*
+           * =================================
+           * 1. APPOINTMENT
+           * =================================
+           */
           const appointment =
             await this
               .appointmentRepository
@@ -347,9 +403,66 @@ export class AdminAppointmentDecisionService {
             appointment,
           );
 
+          /*
+           * O horário administrativo é
+           * calculado pelo BACKEND usando
+           * startsAt.
+           *
+           * Não confiamos em startTime
+           * enviado pelo frontend.
+           */
+          const appointmentStartTime =
+            this.dateToLocalTime(
+              appointment
+                .startsAt
+                .toDate(),
+            );
+
+          /*
+           * =================================
+           * 2. BLOQUEIO EXISTENTE
+           * =================================
+           *
+           * IMPORTANTE:
+           *
+           * Todas as leituras da Transaction
+           * acontecem antes das gravações.
+           *
+           * Só precisamos consultar um
+           * ScheduleBlockout se o ADMIN
+           * realmente escolheu bloquear
+           * aquele horário.
+           */
+          const existingBlockout =
+            blockSlot
+              ? await this
+                  .scheduleBlockoutRepository
+                  .findBySlotInTransaction(
+                    transaction,
+
+                    input.salonId,
+
+                    appointment
+                      .dateKey,
+
+                    appointmentStartTime,
+                  )
+              : null;
+
           const now =
             Timestamp.now();
 
+          /*
+           * =================================
+           * 3. RECUSA
+           * =================================
+           *
+           * O Appointment sempre vira
+           * REJECTED.
+           *
+           * REJECTED por si só NÃO
+           * bloqueia mais o horário.
+           */
           this
             .appointmentRepository
             .updateInTransaction(
@@ -369,6 +482,64 @@ export class AdminAppointmentDecisionService {
               },
             );
 
+          /*
+           * =================================
+           * 4. BLOQUEIO ADMINISTRATIVO
+           * =================================
+           *
+           * Somente quando:
+           *
+           * blockSlot === true
+           *
+           * e ainda não existir bloqueio
+           * para exatamente aquela data
+           * e horário.
+           *
+           * Utilizamos o motivo da recusa
+           * também como motivo inicial do
+           * bloqueio administrativo.
+           */
+          if (
+            blockSlot &&
+            !existingBlockout
+          ) {
+            this
+              .scheduleBlockoutRepository
+              .createInTransaction(
+                transaction,
+
+                {
+                  salonId:
+                    input.salonId,
+
+                  dateKey:
+                    appointment
+                      .dateKey,
+
+                  startTime:
+                    appointmentStartTime,
+
+                  reason:
+                    rejectionReason,
+
+                  createdAt:
+                    now,
+
+                  updatedAt:
+                    now,
+                },
+              );
+          }
+
+          /*
+           * Para a resposta desta operação
+           * continuamos retornando somente
+           * o Appointment.
+           *
+           * O ScheduleBlockout é uma
+           * informação administrativa
+           * separada.
+           */
           return {
             ...appointment,
 
@@ -749,6 +920,83 @@ export class AdminAppointmentDecisionService {
     }
 
     return appointment;
+  }
+
+  /*
+   * =================================
+   * DATA/HORÁRIO LOCAL
+   * =================================
+   *
+   * Firestore Timestamp
+   * ↓
+   * Date
+   * ↓
+   * horário do salão
+   *
+   * Exemplo:
+   *
+   * 13:00
+   *
+   * Utilizamos sempre o startsAt
+   * salvo no Appointment.
+   */
+  private dateToLocalTime(
+    date:
+      Date,
+  ): string {
+    const formatter =
+      new Intl.DateTimeFormat(
+        "en-US",
+        {
+          timeZone:
+            APPOINTMENT_CONFIG
+              .timeZone,
+
+          hour:
+            "2-digit",
+
+          minute:
+            "2-digit",
+
+          hourCycle:
+            "h23",
+        },
+      );
+
+    const parts =
+      formatter
+        .formatToParts(
+          date,
+        );
+
+    const hourPart =
+      parts.find(
+        (
+          part,
+        ) =>
+          part.type ===
+          "hour",
+      );
+
+    const minutePart =
+      parts.find(
+        (
+          part,
+        ) =>
+          part.type ===
+          "minute",
+      );
+
+    if (
+      !hourPart ||
+      !minutePart
+    ) {
+      throw new Error(
+        "Não foi possível interpretar o horário do agendamento.",
+      );
+    }
+
+    return `${hourPart.value}:${minutePart.value}`;
   }
 
   /*

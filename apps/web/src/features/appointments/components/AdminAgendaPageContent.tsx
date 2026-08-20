@@ -33,6 +33,10 @@ import {
 } from "react";
 
 import {
+  AdminPageHeader,
+} from "@/components/admin/AdminPageHeader";
+
+import {
   Button,
 } from "@/components/ui/button";
 
@@ -99,23 +103,13 @@ const currencyFormatter =
 
 type AdminAgendaPageContentProps = {
   initialDateKey?:
-    string;
+  string;
 };
 
 /*
  * =================================
  * TELEFONE
  * =================================
- *
- * Exemplos aceitos:
- *
- * 5548996825149
- * 48996825149
- * +55 (48) 99682-5149
- *
- * Resultado:
- *
- * +55 (48) 99682-5149
  */
 function formatBrazilPhone(
   phone:
@@ -127,14 +121,9 @@ function formatBrazilPhone(
       "",
     );
 
-  /*
-   * Celular com +55.
-   *
-   * 5548996825149
-   */
   if (
     digits.length ===
-      13 &&
+    13 &&
     digits.startsWith(
       "55",
     )
@@ -166,11 +155,6 @@ function formatBrazilPhone(
     return `+${countryCode} (${areaCode}) ${firstPart}-${secondPart}`;
   }
 
-  /*
-   * Celular sem +55.
-   *
-   * 48996825149
-   */
   if (
     digits.length ===
     11
@@ -196,12 +180,9 @@ function formatBrazilPhone(
     return `+55 (${areaCode}) ${firstPart}-${secondPart}`;
   }
 
-  /*
-   * Telefone fixo com +55.
-   */
   if (
     digits.length ===
-      12 &&
+    12 &&
     digits.startsWith(
       "55",
     )
@@ -233,9 +214,6 @@ function formatBrazilPhone(
     return `+${countryCode} (${areaCode}) ${firstPart}-${secondPart}`;
   }
 
-  /*
-   * Telefone fixo sem +55.
-   */
   if (
     digits.length ===
     10
@@ -261,10 +239,6 @@ function formatBrazilPhone(
     return `+55 (${areaCode}) ${firstPart}-${secondPart}`;
   }
 
-  /*
-   * Não alteramos números antigos
-   * que estejam fora do padrão.
-   */
   return phone;
 }
 
@@ -376,19 +350,19 @@ function isValidDateKey(
       Date.UTC(
         year,
         month -
-          1,
+        1,
         day,
       ),
     );
 
   return (
     date.getUTCFullYear() ===
-      year &&
+    year &&
     date.getUTCMonth() ===
-      month -
-        1 &&
+    month -
+    1 &&
     date.getUTCDate() ===
-      day
+    day
   );
 }
 
@@ -417,14 +391,14 @@ function shiftDateKey(
       Date.UTC(
         year,
         month -
-          1,
+        1,
         day,
       ),
     );
 
   date.setUTCDate(
     date.getUTCDate() +
-      amount,
+    amount,
   );
 
   const nextYear =
@@ -435,7 +409,7 @@ function shiftDateKey(
   const nextMonth =
     String(
       date.getUTCMonth() +
-        1,
+      1,
     ).padStart(
       2,
       "0",
@@ -474,7 +448,7 @@ function formatSelectedDate(
       Date.UTC(
         year,
         month -
-          1,
+        1,
         day,
         12,
       ),
@@ -553,7 +527,7 @@ function formatPrice(
   return currencyFormatter
     .format(
       priceCents /
-        100,
+      100,
     );
 }
 
@@ -562,7 +536,7 @@ function getAppointmentStatusConfig(
     AppointmentStatus,
 ) {
   switch (
-    status
+  status
   ) {
     case APPOINTMENT_STATUS
       .PENDING_APPROVAL:
@@ -737,7 +711,7 @@ export function AdminAgendaPageContent({
 
   const {
     data:
-      appointments = [],
+    appointments = [],
 
     isLoading,
 
@@ -751,14 +725,9 @@ export function AdminAgendaPageContent({
       dateKey,
     );
 
-  /*
-   * Fallback para agendamentos
-   * antigos sem snapshot do
-   * tipo de preço.
-   */
   const {
     data:
-      services = [],
+    services = [],
   } =
     useServices();
 
@@ -837,10 +806,10 @@ export function AdminAgendaPageContent({
 
     return (
       priceType ===
-        SERVICE_PRICE_TYPES
-          .STARTING_FROM ||
+      SERVICE_PRICE_TYPES
+        .STARTING_FROM ||
       priceType ===
-        null
+      null
     );
   }
 
@@ -945,7 +914,7 @@ export function AdminAgendaPageContent({
           appointmentId,
         );
     } catch (
-      error
+    error
     ) {
       setActionError(
         error instanceof
@@ -984,7 +953,7 @@ export function AdminAgendaPageContent({
           appointmentId,
         );
     } catch (
-      error
+    error
     ) {
       setActionError(
         error instanceof
@@ -1036,7 +1005,7 @@ export function AdminAgendaPageContent({
             appointment.id,
         });
     } catch (
-      error
+    error
     ) {
       setActionError(
         error instanceof
@@ -1075,95 +1044,79 @@ export function AdminAgendaPageContent({
   }
 
   return (
-    <main className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10 xl:px-10">
-      {/* CABEÇALHO */}
-      <header className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
-        <div>
-          <div className="flex items-center gap-3">
-            <div className="flex size-11 items-center justify-center rounded-xl bg-[#304229] text-white shadow-sm">
-              <CalendarDays className="size-5" />
-            </div>
+    <main className="w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-8 xl:px-10">
+      {/* ================================= */}
+      {/* CABEÇALHO PADRÃO ADMIN */}
+      {/* ================================= */}
 
-            <div>
-              <p className="text-sm text-[#73776D]">
-                Administração
-              </p>
+      <AdminPageHeader
+        eyebrow="Administração"
+        title="Agenda"
+        description="Visualize os horários do salão e acompanhe as solicitações das clientes."
+        rightContent={
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={
+                isToday
+              }
+              onClick={
+                handleToday
+              }
+              className="border-[#DDD6C9] bg-[#FFFDF8] text-[#304229]"
+            >
+              Hoje
+            </Button>
 
-              <h1 className="text-2xl font-semibold text-[#20241D]">
-                Agenda
-              </h1>
+            <div className="flex items-center justify-center rounded-xl border border-[#DDD6C9] bg-[#FFFDF8] p-1 shadow-sm">
+              <button
+                type="button"
+                onClick={
+                  handlePreviousDay
+                }
+                className="flex size-10 shrink-0 items-center justify-center rounded-lg text-[#5E645A] transition hover:bg-[#F1EDE4] hover:text-[#304229]"
+                aria-label="Dia anterior"
+              >
+                <ChevronLeft className="size-5" />
+              </button>
+
+              <div className="mx-1 h-6 w-px bg-[#E5DED1]" />
+
+              <input
+                type="date"
+                value={
+                  dateKey
+                }
+                onChange={(
+                  event,
+                ) =>
+                  handleDateChange(
+                    event
+                      .target
+                      .value,
+                  )
+                }
+                className="h-10 min-w-0 border-0 bg-transparent px-3 text-sm font-semibold text-[#20241D] outline-none sm:min-w-[150px]"
+                aria-label="Selecionar data da agenda"
+              />
+
+              <div className="mx-1 h-6 w-px bg-[#E5DED1]" />
+
+              <button
+                type="button"
+                onClick={
+                  handleNextDay
+                }
+                className="flex size-10 shrink-0 items-center justify-center rounded-lg text-[#5E645A] transition hover:bg-[#F1EDE4] hover:text-[#304229]"
+                aria-label="Próximo dia"
+              >
+                <ChevronRight className="size-5" />
+              </button>
             </div>
           </div>
-
-          <p className="mt-4 max-w-2xl text-sm leading-6 text-[#73776D]">
-            Visualize os horários do
-            salão e acompanhe as
-            solicitações das clientes.
-          </p>
-        </div>
-
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <Button
-            type="button"
-            variant="outline"
-            disabled={
-              isToday
-            }
-            onClick={
-              handleToday
-            }
-            className="border-[#DDD6C9] bg-[#FFFDF8] text-[#304229]"
-          >
-            Hoje
-          </Button>
-
-          <div className="flex items-center rounded-xl border border-[#DDD6C9] bg-[#FFFDF8] p-1 shadow-sm">
-            <button
-              type="button"
-              onClick={
-                handlePreviousDay
-              }
-              className="flex size-10 shrink-0 items-center justify-center rounded-lg text-[#5E645A] transition hover:bg-[#F1EDE4] hover:text-[#304229]"
-              aria-label="Dia anterior"
-            >
-              <ChevronLeft className="size-5" />
-            </button>
-
-            <div className="mx-1 h-6 w-px bg-[#E5DED1]" />
-
-            <input
-              type="date"
-              value={
-                dateKey
-              }
-              onChange={(
-                event,
-              ) =>
-                handleDateChange(
-                  event
-                    .target
-                    .value,
-                )
-              }
-              className="h-10 min-w-0 border-0 bg-transparent px-3 text-sm font-semibold text-[#20241D] outline-none sm:min-w-[150px]"
-              aria-label="Selecionar data da agenda"
-            />
-
-            <div className="mx-1 h-6 w-px bg-[#E5DED1]" />
-
-            <button
-              type="button"
-              onClick={
-                handleNextDay
-              }
-              className="flex size-10 shrink-0 items-center justify-center rounded-lg text-[#5E645A] transition hover:bg-[#F1EDE4] hover:text-[#304229]"
-              aria-label="Próximo dia"
-            >
-              <ChevronRight className="size-5" />
-            </button>
-          </div>
-        </div>
-      </header>
+        }
+      />
 
       {/* DATA */}
       <section className="mt-8">
@@ -1198,7 +1151,7 @@ export function AdminAgendaPageContent({
                 <span className="rounded-full border border-[#E5DED1] bg-white px-3 py-1.5 text-xs font-semibold text-[#62685E]">
                   {appointments.length}{" "}
                   {appointments.length ===
-                  1
+                    1
                     ? "agendamento"
                     : "agendamentos"}
                 </span>
@@ -1312,7 +1265,7 @@ export function AdminAgendaPageContent({
           {!isLoading &&
             !isError &&
             appointments.length ===
-              0 && (
+            0 && (
               <div className="p-5 sm:p-6">
                 <div className="flex min-h-[300px] items-center justify-center rounded-2xl border border-dashed border-[#D9D2C5] bg-[#FBF9F4] px-6 py-12 text-center">
                   <div className="max-w-md">
@@ -1335,7 +1288,7 @@ export function AdminAgendaPageContent({
           {!isLoading &&
             !isError &&
             appointments.length >
-              0 && (
+            0 && (
               <div className="divide-y divide-[#EAE4D8]">
                 {appointments.map(
                   (
@@ -1399,7 +1352,6 @@ export function AdminAgendaPageContent({
                         }
                         className="px-5 py-5 transition hover:bg-[#FBF9F4] sm:px-6"
                       >
-                        {/* STATUS */}
                         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
                           <span
                             className={[
@@ -1436,9 +1388,7 @@ export function AdminAgendaPageContent({
                           )}
                         </div>
 
-                        {/* DADOS */}
                         <div className="flex flex-col gap-5 lg:flex-row lg:items-center">
-                          {/* HORÁRIO */}
                           <div className="flex shrink-0 items-center gap-3 lg:w-[115px]">
                             <div className="flex size-10 items-center justify-center rounded-xl bg-[#F1EBDD] text-[#465B36]">
                               <Clock3 className="size-[18px]" />
@@ -1458,7 +1408,6 @@ export function AdminAgendaPageContent({
                             </div>
                           </div>
 
-                          {/* CLIENTE */}
                           <div className="min-w-0 flex-1">
                             <div className="flex items-start gap-3">
                               <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#EEF1EA] text-[#465B36]">
@@ -1490,7 +1439,6 @@ export function AdminAgendaPageContent({
                             </div>
                           </div>
 
-                          {/* SERVIÇO */}
                           <div className="min-w-0 flex-1">
                             <div className="flex items-start gap-3">
                               <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#F4EFE4] text-[#8A6A2F]">
@@ -1520,7 +1468,6 @@ export function AdminAgendaPageContent({
                             </div>
                           </div>
 
-                          {/* VALOR */}
                           <div className="shrink-0 lg:min-w-[145px] lg:text-right">
                             <p className="text-xs font-medium uppercase tracking-wide text-[#8A8E84]">
                               {variablePrice
@@ -1546,7 +1493,6 @@ export function AdminAgendaPageContent({
                           </div>
                         </div>
 
-                        {/* MOTIVO RECUSA */}
                         {appointment.status ===
                           APPOINTMENT_STATUS
                             .REJECTED &&
@@ -1566,7 +1512,6 @@ export function AdminAgendaPageContent({
                             </div>
                           )}
 
-                        {/* PENDENTE */}
                         {isPending && (
                           <div className="mt-5 flex flex-col gap-3 border-t border-[#EAE4D8] pt-5 sm:flex-row sm:items-center sm:justify-end">
                             <Button
@@ -1612,7 +1557,6 @@ export function AdminAgendaPageContent({
                           </div>
                         )}
 
-                        {/* CONFIRMADO */}
                         {isConfirmed && (
                           <div className="mt-5 flex justify-end border-t border-[#EAE4D8] pt-5">
                             <Button
@@ -1640,7 +1584,6 @@ export function AdminAgendaPageContent({
                           </div>
                         )}
 
-                        {/* EM ATENDIMENTO */}
                         {isInProgress && (
                           <div className="mt-5 flex justify-end border-t border-[#EAE4D8] pt-5">
                             <Button
@@ -1678,7 +1621,6 @@ export function AdminAgendaPageContent({
         </div>
       </section>
 
-      {/* MODAL RECUSA */}
       {appointmentToReject && (
         <RejectAppointmentDialog
           key={
@@ -1699,7 +1641,6 @@ export function AdminAgendaPageContent({
         />
       )}
 
-      {/* MODAL VALOR FINAL */}
       {appointmentToComplete && (
         <CompleteAppointmentDialog
           key={

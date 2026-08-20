@@ -5,9 +5,14 @@ import {
 } from "@priscila/shared";
 
 import {
+    Flame,
     RefreshCw,
     Scissors,
 } from "lucide-react";
+
+import {
+    AdminPageHeader,
+} from "@/components/admin/AdminPageHeader";
 
 import {
     Button,
@@ -22,6 +27,10 @@ import {
 } from "./EditServiceDialog";
 
 import {
+    ServicePromotionDialog,
+} from "./ServicePromotionDialog";
+
+import {
     ServiceStatusButton,
 } from "./ServiceStatusButton";
 
@@ -30,7 +39,8 @@ import {
 } from "@/features/services/hooks/useServices";
 
 function formatPrice(
-    priceInCents: number,
+    priceInCents:
+        number,
 ) {
     return new Intl.NumberFormat(
         "pt-BR",
@@ -42,7 +52,8 @@ function formatPrice(
                 "BRL",
         },
     ).format(
-        priceInCents / 100,
+        priceInCents /
+            100,
     );
 }
 
@@ -64,33 +75,14 @@ export function ServicesPageContent() {
             {/* ==============================
                 CABEÇALHO
             ============================== */}
-            <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                    <div className="flex items-center gap-3">
-                        <div className="flex size-11 items-center justify-center rounded-xl bg-[#304229] text-white">
-                            <Scissors className="size-5" />
-                        </div>
-
-                        <div>
-                            <p className="text-sm text-muted-foreground">
-                                Administração
-                            </p>
-
-                            <h1 className="text-2xl font-semibold">
-                                Serviços
-                            </h1>
-                        </div>
-                    </div>
-
-                    <p className="mt-4 max-w-xl text-sm leading-6 text-muted-foreground">
-                        Gerencie os serviços oferecidos
-                        pelo salão e seus respectivos
-                        preços.
-                    </p>
-                </div>
-
-                <CreateServiceDialog />
-            </header>
+            <AdminPageHeader
+                eyebrow="Administração"
+                title="Serviços"
+                description="Gerencie os serviços oferecidos pelo salão e seus respectivos preços."
+                rightContent={
+                    <CreateServiceDialog />
+                }
+            />
 
             {/* ==============================
                 CONTEÚDO
@@ -112,7 +104,7 @@ export function ServicesPageContent() {
                                     key={
                                         item
                                     }
-                                    className="h-[145px] animate-pulse rounded-2xl border border-[#E5E9E2] bg-white"
+                                    className="h-[195px] animate-pulse rounded-2xl border border-[#E5E9E2] bg-white"
                                 />
                             ),
                         )}
@@ -123,8 +115,7 @@ export function ServicesPageContent() {
                 {isError && (
                     <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
                         <p className="text-sm font-medium text-red-700">
-                            Não foi possível carregar os
-                            serviços.
+                            Não foi possível carregar os serviços.
                         </p>
 
                         <Button
@@ -146,7 +137,7 @@ export function ServicesPageContent() {
                 {!isLoading &&
                     !isError &&
                     services.length ===
-                    0 && (
+                        0 && (
                         <div className="rounded-2xl border bg-white p-8 text-center">
                             <Scissors className="mx-auto size-8 text-muted-foreground" />
 
@@ -155,8 +146,7 @@ export function ServicesPageContent() {
                             </h2>
 
                             <p className="mt-2 text-sm text-muted-foreground">
-                                Clique em &quot;Novo serviço&quot;
-                                para fazer o primeiro cadastro.
+                                Clique em &quot;Novo serviço&quot; para fazer o primeiro cadastro.
                             </p>
                         </div>
                     )}
@@ -165,21 +155,30 @@ export function ServicesPageContent() {
                 {!isLoading &&
                     !isError &&
                     services.length >
-                    0 && (
+                        0 && (
                         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                             {services.map(
                                 (
                                     service,
                                 ) => {
                                     const isStartingFrom =
-                                        service.priceType ===
+                                        service
+                                            .priceType ===
                                         SERVICE_PRICE_TYPES
                                             .STARTING_FROM;
+
+                                    const promotionIsActive =
+                                        service
+                                            .promotionActive &&
+                                        service
+                                            .promotionPriceCents !==
+                                            null;
 
                                     return (
                                         <article
                                             key={
-                                                service.id
+                                                service
+                                                    .id
                                             }
                                             className="
                                                 rounded-2xl
@@ -195,7 +194,9 @@ export function ServicesPageContent() {
                                                 hover:shadow-[0_6px_18px_rgba(48,66,41,0.08)]
                                             "
                                         >
-                                            {/* TOPO */}
+                                            {/* ==============================
+                                                TOPO
+                                            ============================== */}
                                             <div className="flex min-w-0 items-start justify-between gap-3">
                                                 <div className="min-w-0">
                                                     <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#94998F]">
@@ -204,87 +205,156 @@ export function ServicesPageContent() {
 
                                                     <h2 className="mt-1 truncate text-[17px] font-semibold text-[#242A22]">
                                                         {
-                                                            service.name
+                                                            service
+                                                                .name
                                                         }
                                                     </h2>
                                                 </div>
 
-                                                <span
-                                                    className={
-                                                        service.active
-                                                            ? `
-                                                                shrink-0
-                                                                rounded-full
-                                                                bg-[#E8F1E5]
-                                                                px-2.5
-                                                                py-1
-                                                                text-[11px]
-                                                                font-semibold
-                                                                text-[#3F6337]
-                                                            `
-                                                            : `
-                                                                shrink-0
-                                                                rounded-full
-                                                                bg-zinc-100
-                                                                px-2.5
-                                                                py-1
-                                                                text-[11px]
-                                                                font-semibold
-                                                                text-zinc-600
-                                                            `
-                                                    }
-                                                >
-                                                    {service.active
-                                                        ? "Ativo"
-                                                        : "Inativo"}
-                                                </span>
+                                                <div className="flex shrink-0 flex-col items-end gap-1.5">
+                                                    <span
+                                                        className={
+                                                            service
+                                                                .active
+                                                                ? `
+                                                                    rounded-full
+                                                                    bg-[#E8F1E5]
+                                                                    px-2.5
+                                                                    py-1
+                                                                    text-[11px]
+                                                                    font-semibold
+                                                                    text-[#3F6337]
+                                                                `
+                                                                : `
+                                                                    rounded-full
+                                                                    bg-zinc-100
+                                                                    px-2.5
+                                                                    py-1
+                                                                    text-[11px]
+                                                                    font-semibold
+                                                                    text-zinc-600
+                                                                `
+                                                        }
+                                                    >
+                                                        {service
+                                                            .active
+                                                            ? "Ativo"
+                                                            : "Inativo"}
+                                                    </span>
+
+                                                    {promotionIsActive && (
+                                                        <span className="inline-flex items-center gap-1 rounded-full border border-[#E9D39E] bg-[#FFF7DF] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[#755819]">
+                                                            <Flame className="size-3" />
+
+                                                            {service
+                                                                .promotionLabel ??
+                                                                "Promoção"}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
 
-                                            {/* PREÇO + AÇÕES */}
-                                            <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                                                <div className="shrink-0">
-                                                    <p className="text-xs text-muted-foreground">
-                                                        {isStartingFrom
-                                                            ? "Valor inicial"
-                                                            : "Preço"}
-                                                    </p>
+                                            {/* ==============================
+                                                PREÇO
+                                            ============================== */}
+                                            <div className="mt-5">
+                                                {promotionIsActive ? (
+                                                    <div className="rounded-xl border border-[#E9DAB8] bg-[#FFFBF1] p-3">
+                                                        <div className="flex flex-wrap items-end justify-between gap-3">
+                                                            <div>
+                                                                <p className="text-[11px] font-medium text-[#8A8171]">
+                                                                    {isStartingFrom
+                                                                        ? "Valor inicial normal"
+                                                                        : "Preço normal"}
+                                                                </p>
 
-                                                    {isStartingFrom ? (
-                                                        <div className="mt-0.5">
-                                                            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#6D7868]">
-                                                                A partir de
-                                                            </p>
+                                                                <p className="mt-0.5 text-sm font-medium text-[#8A8171] line-through">
+                                                                    {isStartingFrom &&
+                                                                        "A partir de "}
 
-                                                            <p className="text-xl font-bold tracking-tight text-[#304229]">
+                                                                    {formatPrice(
+                                                                        service
+                                                                            .defaultPriceCents,
+                                                                    )}
+                                                                </p>
+                                                            </div>
+
+                                                            <div className="text-right">
+                                                                <p className="flex items-center justify-end gap-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[#80601B]">
+                                                                    <Flame className="size-3" />
+
+                                                                    Promoção
+                                                                </p>
+
+                                                                {isStartingFrom && (
+                                                                    <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#80601B]">
+                                                                        A partir de
+                                                                    </p>
+                                                                )}
+
+                                                                <p className="text-xl font-bold tracking-tight text-[#6B5016]">
+                                                                    {formatPrice(
+                                                                        service
+                                                                            .promotionPriceCents!,
+                                                                    )}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {isStartingFrom
+                                                                ? "Valor inicial"
+                                                                : "Preço"}
+                                                        </p>
+
+                                                        {isStartingFrom ? (
+                                                            <div className="mt-0.5">
+                                                                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#6D7868]">
+                                                                    A partir de
+                                                                </p>
+
+                                                                <p className="text-xl font-bold tracking-tight text-[#304229]">
+                                                                    {formatPrice(
+                                                                        service
+                                                                            .defaultPriceCents,
+                                                                    )}
+                                                                </p>
+                                                            </div>
+                                                        ) : (
+                                                            <p className="mt-0.5 text-xl font-bold tracking-tight text-[#304229]">
                                                                 {formatPrice(
                                                                     service
                                                                         .defaultPriceCents,
                                                                 )}
                                                             </p>
-                                                        </div>
-                                                    ) : (
-                                                        <p className="mt-0.5 text-xl font-bold tracking-tight text-[#304229]">
-                                                            {formatPrice(
-                                                                service
-                                                                    .defaultPriceCents,
-                                                            )}
-                                                        </p>
-                                                    )}
-                                                </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
 
-                                                <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                                                    <EditServiceDialog
-                                                        service={
-                                                            service
-                                                        }
-                                                    />
+                                            {/* ==============================
+                                                AÇÕES
+                                            ============================== */}
+                                            <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-[#EEF0EC] pt-4">
+                                                <ServicePromotionDialog
+                                                    service={
+                                                        service
+                                                    }
+                                                />
 
-                                                    <ServiceStatusButton
-                                                        service={
-                                                            service
-                                                        }
-                                                    />
-                                                </div>
+                                                <EditServiceDialog
+                                                    service={
+                                                        service
+                                                    }
+                                                />
+
+                                                <ServiceStatusButton
+                                                    service={
+                                                        service
+                                                    }
+                                                />
                                             </div>
                                         </article>
                                     );

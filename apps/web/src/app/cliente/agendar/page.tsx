@@ -14,6 +14,7 @@ import {
   Check,
   CheckCircle2,
   Clock3,
+  Flame,
   LoaderCircle,
   Scissors,
   Sparkles,
@@ -66,7 +67,7 @@ function formatPrice(
   return currencyFormatter
     .format(
       priceCents /
-        100,
+      100,
     );
 }
 
@@ -84,6 +85,28 @@ function isClientSpecialPrice(
     service.priceSource ===
     APPOINTMENT_PRICE_SOURCE
       .CLIENT_SPECIAL
+  );
+}
+
+function isPromotionPrice(
+  service:
+    ClientBookableService,
+) {
+  return (
+    service.priceSource ===
+    APPOINTMENT_PRICE_SOURCE
+      .PROMOTION
+  );
+}
+
+function hasActivePromotion(
+  service:
+    ClientBookableService,
+) {
+  return (
+    service.promotionActive &&
+    service.promotionPriceCents !==
+    null
   );
 }
 
@@ -193,7 +216,7 @@ function formatDateKey(
       Date.UTC(
         year,
         month -
-          1,
+        1,
         day,
         12,
       ),
@@ -249,7 +272,7 @@ function formatDuration(
   const hours =
     Math.floor(
       minutes /
-        60,
+      60,
     );
 
   const remainingMinutes =
@@ -331,19 +354,19 @@ export default function ClientBookingPage() {
 
   const {
     data:
-      services = [],
+    services = [],
 
     isLoading:
-      servicesLoading,
+    servicesLoading,
 
     isError:
-      servicesError,
+    servicesError,
 
     refetch:
-      refetchServices,
+    refetchServices,
 
     isFetching:
-      servicesFetching,
+    servicesFetching,
   } =
     useClientBookableServices();
 
@@ -365,19 +388,19 @@ export default function ClientBookingPage() {
 
   const {
     data:
-      availability,
+    availability,
 
     isLoading:
-      availabilityLoading,
+    availabilityLoading,
 
     isFetching:
-      availabilityFetching,
+    availabilityFetching,
 
     isError:
-      availabilityError,
+    availabilityError,
 
     refetch:
-      refetchAvailability,
+    refetchAvailability,
   } =
     useAppointmentAvailability({
       serviceId:
@@ -534,7 +557,7 @@ export default function ClientBookingPage() {
         appointment,
       );
     } catch (
-      error
+    error
     ) {
       const message =
         error instanceof
@@ -560,15 +583,29 @@ export default function ClientBookingPage() {
     const createdServiceHasSpecialPrice =
       selectedService
         ? isClientSpecialPrice(
-            selectedService,
-          )
+          selectedService,
+        )
+        : false;
+
+    const createdServiceHasPromotion =
+      selectedService
+        ? hasActivePromotion(
+          selectedService,
+        )
+        : false;
+
+    const createdServiceUsesPromotion =
+      selectedService
+        ? isPromotionPrice(
+          selectedService,
+        )
         : false;
 
     const createdServiceIsStartingFrom =
       selectedService
         ? isStartingFromPrice(
-            selectedService,
-          )
+          selectedService,
+        )
         : false;
 
     return (
@@ -634,8 +671,8 @@ export default function ClientBookingPage() {
                   <p className="mt-1 font-semibold text-[#263620]">
                     {selectedDate
                       ? formatDateKey(
-                          selectedDate,
-                        )
+                        selectedDate,
+                      )
                       : "-"}
                   </p>
                 </div>
@@ -655,13 +692,13 @@ export default function ClientBookingPage() {
                 <div>
                   <p className="text-xs font-medium text-[#92978E]">
                     {createdServiceIsStartingFrom &&
-                    !createdServiceHasSpecialPrice
+                      !createdServiceHasSpecialPrice
                       ? "Valor inicial"
                       : "Valor"}
                   </p>
 
                   {createdServiceIsStartingFrom &&
-                  !createdServiceHasSpecialPrice ? (
+                    !createdServiceHasSpecialPrice ? (
                     <div className="mt-1">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#788273]">
                         A partir de
@@ -683,13 +720,32 @@ export default function ClientBookingPage() {
                     </p>
                   )}
 
-                  {createdServiceHasSpecialPrice && (
-                    <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-[#F5EBD2] px-2.5 py-1 text-[11px] font-semibold text-[#8A6A2F]">
-                      <Tag className="size-3" />
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {createdServiceHasPromotion && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-[#E9D39E] bg-[#FFF7DF] px-2.5 py-1 text-[11px] font-semibold text-[#755819]">
+                        <Flame className="size-3" />
 
-                      Seu preço
-                    </span>
-                  )}
+                        {selectedService
+                          ?.promotionLabel ??
+                          "Promoção"}
+                      </span>
+                    )}
+
+                    {createdServiceHasSpecialPrice && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-[#F5EBD2] px-2.5 py-1 text-[11px] font-semibold text-[#8A6A2F]">
+                        <Tag className="size-3" />
+
+                        Seu preço
+                      </span>
+                    )}
+                  </div>
+
+                  {createdServiceUsesPromotion &&
+                    createdServiceIsStartingFrom && (
+                      <p className="mt-2 text-xs leading-5 text-[#71776D]">
+                        Valor promocional inicial. O valor final pode variar conforme a avaliação do serviço.
+                      </p>
+                    )}
                 </div>
               </div>
             </div>
@@ -930,7 +986,7 @@ export default function ClientBookingPage() {
         {!servicesLoading &&
           !servicesError &&
           services.length ===
-            0 && (
+          0 && (
             <div className="rounded-3xl border border-dashed border-[#D8D3C8] bg-white/60 p-8 text-center">
               <Scissors className="mx-auto size-8 text-[#8A8E84]" />
 
@@ -949,7 +1005,7 @@ export default function ClientBookingPage() {
         {!servicesLoading &&
           !servicesError &&
           services.length >
-            0 && (
+          0 && (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {services.map(
                 (
@@ -964,6 +1020,16 @@ export default function ClientBookingPage() {
                       service,
                     );
 
+                  const promotionPrice =
+                    isPromotionPrice(
+                      service,
+                    );
+
+                  const promotionActive =
+                    hasActivePromotion(
+                      service,
+                    );
+
                   const startingFrom =
                     isStartingFromPrice(
                       service,
@@ -972,8 +1038,23 @@ export default function ClientBookingPage() {
                   const hasSpecialPrice =
                     specialPrice &&
                     service.priceCents !==
-                      service
-                        .defaultPriceCents;
+                    service
+                      .defaultPriceCents;
+
+                  const hasDiscountedPrice =
+                    service.priceCents !==
+                    service
+                      .defaultPriceCents;
+
+                  const specialBeatsPromotion =
+                    specialPrice &&
+                    promotionActive &&
+                    service
+                      .promotionPriceCents !==
+                    null &&
+                    service.priceCents <
+                    service
+                      .promotionPriceCents;
 
                   return (
                     <button
@@ -1016,6 +1097,17 @@ export default function ClientBookingPage() {
                         }
                       </h3>
 
+                      {promotionActive && (
+                        <div className="mt-3">
+                          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#E9D39E] bg-[#FFF7DF] px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-[#755819]">
+                            <Flame className="size-3.5" />
+
+                            {service.promotionLabel ??
+                              "Promoção"}
+                          </span>
+                        </div>
+                      )}
+
                       {service.description && (
                         <p className="mt-2 line-clamp-2 text-sm leading-6 text-[#71776D]">
                           {
@@ -1035,22 +1127,40 @@ export default function ClientBookingPage() {
                             )}
                           </div>
 
-                          {hasSpecialPrice && (
+                          {hasDiscountedPrice && (
                             <p className="mt-2 text-xs text-[#92978E] line-through">
                               {startingFrom
                                 ? `A partir de ${formatPrice(
-                                    service
-                                      .defaultPriceCents,
-                                  )}`
+                                  service
+                                    .defaultPriceCents,
+                                )}`
                                 : formatPrice(
-                                    service
-                                      .defaultPriceCents,
-                                  )}
+                                  service
+                                    .defaultPriceCents,
+                                )}
                             </p>
                           )}
 
+                          {specialBeatsPromotion &&
+                            service
+                              .promotionPriceCents !==
+                            null && (
+                              <p className="mt-1 text-xs font-medium text-[#80601B]">
+                                Promoção:{" "}
+                                {startingFrom
+                                  ? `A partir de ${formatPrice(
+                                    service
+                                      .promotionPriceCents,
+                                  )}`
+                                  : formatPrice(
+                                    service
+                                      .promotionPriceCents,
+                                  )}
+                              </p>
+                            )}
+
                           {!specialPrice &&
-                          startingFrom ? (
+                            startingFrom ? (
                             <div className="mt-2">
                               <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#788273]">
                                 A partir de
@@ -1073,13 +1183,23 @@ export default function ClientBookingPage() {
                           )}
                         </div>
 
-                        {hasSpecialPrice && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-[#F5EBD2] px-2.5 py-1 text-[11px] font-semibold text-[#8A6A2F]">
-                            <Tag className="size-3" />
+                        <div className="flex flex-col items-end gap-2">
+                          {promotionPrice && (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-[#E9D39E] bg-[#FFF7DF] px-2.5 py-1 text-[11px] font-semibold text-[#755819]">
+                              <Flame className="size-3" />
 
-                            Seu preço
-                          </span>
-                        )}
+                              Promoção
+                            </span>
+                          )}
+
+                          {hasSpecialPrice && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-[#F5EBD2] px-2.5 py-1 text-[11px] font-semibold text-[#8A6A2F]">
+                              <Tag className="size-3" />
+
+                              Seu preço
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </button>
                   );
@@ -1223,7 +1343,7 @@ export default function ClientBookingPage() {
                 !availabilityFetching &&
                 !availabilityError &&
                 slots.length ===
-                  0 && (
+                0 && (
                   <div className="py-8 text-center">
                     <CalendarDays className="mx-auto size-8 text-[#9A9F95]" />
 
@@ -1246,7 +1366,7 @@ export default function ClientBookingPage() {
                 !availabilityFetching &&
                 !availabilityError &&
                 slots.length >
-                  0 && (
+                0 && (
                   <>
                     <p className="text-sm text-[#71776D]">
                       Toque em um horário
@@ -1399,42 +1519,39 @@ export default function ClientBookingPage() {
                       {isStartingFromPrice(
                         selectedService,
                       ) &&
-                      !isClientSpecialPrice(
-                        selectedService,
-                      )
+                        !isClientSpecialPrice(
+                          selectedService,
+                        )
                         ? "Valor inicial"
                         : "Valor"}
                     </p>
                   </div>
 
-                  {isClientSpecialPrice(
-                    selectedService,
-                  ) &&
+                  {selectedService
+                    .priceCents !==
                     selectedService
-                      .priceCents !==
-                      selectedService
-                        .defaultPriceCents && (
+                      .defaultPriceCents && (
                       <p className="mt-3 text-sm text-[#92978E] line-through">
                         {isStartingFromPrice(
                           selectedService,
                         )
                           ? `A partir de ${formatPrice(
-                              selectedService
-                                .defaultPriceCents,
-                            )}`
+                            selectedService
+                              .defaultPriceCents,
+                          )}`
                           : formatPrice(
-                              selectedService
-                                .defaultPriceCents,
-                            )}
+                            selectedService
+                              .defaultPriceCents,
+                          )}
                       </p>
                     )}
 
                   {!isClientSpecialPrice(
                     selectedService,
                   ) &&
-                  isStartingFromPrice(
-                    selectedService,
-                  ) ? (
+                    isStartingFromPrice(
+                      selectedService,
+                    ) ? (
                     <div className="mt-3">
                       <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#788273]">
                         A partir de
@@ -1456,15 +1573,29 @@ export default function ClientBookingPage() {
                     </p>
                   )}
 
-                  {isClientSpecialPrice(
-                    selectedService,
-                  ) && (
-                    <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-[#F5EBD2] px-2.5 py-1 text-xs font-semibold text-[#8A6A2F]">
-                      <Tag className="size-3" />
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {hasActivePromotion(
+                      selectedService,
+                    ) && (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-[#E9D39E] bg-[#FFF7DF] px-2.5 py-1 text-xs font-semibold text-[#755819]">
+                          <Flame className="size-3" />
 
-                      Preço especial
-                    </span>
-                  )}
+                          {selectedService
+                            .promotionLabel ??
+                            "Promoção"}
+                        </span>
+                      )}
+
+                    {isClientSpecialPrice(
+                      selectedService,
+                    ) && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[#F5EBD2] px-2.5 py-1 text-xs font-semibold text-[#8A6A2F]">
+                          <Tag className="size-3" />
+
+                          Preço especial
+                        </span>
+                      )}
+                  </div>
 
                   {!isClientSpecialPrice(
                     selectedService,

@@ -23,33 +23,60 @@ export type ClientBookableService = {
     number;
 
   /*
-   * Valor padrão/base cadastrado
+   * Valor normal/base cadastrado
    * no serviço.
    */
   defaultPriceCents:
     number;
 
   /*
-   * Define como o preço padrão
-   * deve ser apresentado:
-   *
    * FIXED
-   * → R$ 250,00
-   *
-   * STARTING_FROM
-   * → A partir de R$ 500,00
+   * ou
+   * STARTING_FROM.
    */
   priceType:
     ServicePriceType;
 
   /*
-   * Valor efetivamente apresentado
-   * para esta cliente.
+   * =================================
+   * PROMOÇÃO
+   * =================================
    *
-   * Pode ser:
+   * Estes campos permitem que o
+   * frontend mostre:
    *
-   * - preço padrão;
-   * - preço especial da cliente.
+   * 🔥 PROMOÇÃO
+   *
+   * De R$ 300
+   * Por R$ 250
+   *
+   * Mesmo quando a cliente possuir
+   * um preço especial ainda menor,
+   * a informação da promoção continua
+   * disponível para apresentação.
+   */
+  promotionActive:
+    boolean;
+
+  promotionPriceCents:
+    number | null;
+
+  promotionLabel:
+    string | null;
+
+  /*
+   * =================================
+   * PREÇO EFETIVO DA CLIENTE
+   * =================================
+   *
+   * Este é o valor escolhido
+   * pelo BACKEND.
+   *
+   * Pode vir de:
+   *
+   * SERVICE_DEFAULT
+   * CLIENT_SPECIAL
+   * PROMOTION
    */
   priceCents:
     number;

@@ -14,24 +14,28 @@ import {
     AppointmentRepository,
 } from "./appointment.repository.js";
 
+import {
+    ScheduleBlockoutRepository,
+} from "./schedule-blockout.repository.js";
+
 import type {
     AvailabilitySlot,
 } from "./appointment-availability.types.js";
 
 type GenerateSlotsInput = {
     dateKey:
-        string;
+    string;
 
     durationMinutes:
-        number;
+    number;
 };
 
 type GetAvailableSlotsInput = {
     dateKey:
-        string;
+    string;
 
     durationMinutes:
-        number;
+    number;
 
     /*
      * Mantemos phases no contrato
@@ -42,7 +46,7 @@ type GetAvailableSlotsInput = {
      * o bloqueio de outro horário fixo.
      */
     phases:
-        ServicePhase[];
+    ServicePhase[];
 };
 
 export class AppointmentAvailabilityService {
@@ -52,7 +56,10 @@ export class AppointmentAvailabilityService {
 
         private readonly conflictService =
             new AppointmentConflictService(),
-    ) {}
+
+        private readonly scheduleBlockoutRepository =
+            new ScheduleBlockoutRepository(),
+    ) { }
 
     /*
      * =================================
@@ -91,7 +98,7 @@ export class AppointmentAvailabilityService {
                 durationMinutes,
             ) ||
             durationMinutes <=
-                0
+            0
         ) {
             throw new Error(
                 "A duração do serviço deve ser maior que zero.",
@@ -124,8 +131,8 @@ export class AppointmentAvailabilityService {
         const configuredStartTimes =
             APPOINTMENT_CONFIG
                 .startTimesByWeekDay[
-                    weekDay
-                ];
+            weekDay
+            ];
 
         if (
             !configuredStartTimes ||
@@ -217,46 +224,104 @@ export class AppointmentAvailabilityService {
         }
 
         /*
-         * 2. Busca os agendamentos
-         * existentes naquele dia.
+         * 2. Busca em paralelo:
+         *
+         * - agendamentos daquele dia;
+         * - bloqueios administrativos
+         *   daquele dia.
          */
-        const appointments =
-            await this
-                .appointmentRepository
-                .findByDateKey(
-                    salonId,
-                    input.dateKey,
-                );
+        const [
+            appointments,
+            scheduleBlockouts,
+        ] =
+            await Promise.all([
+                this
+                    .appointmentRepository
+                    .findByDateKey(
+                        salonId,
+                        input.dateKey,
+                    ),
+
+                this
+                    .scheduleBlockoutRepository
+                    .findByDateKey(
+                        salonId,
+                        input.dateKey,
+                    ),
+            ]);
 
         /*
-         * 3. Remove somente horários
-         * que já possuam outro
-         * Appointment bloqueante
-         * começando EXATAMENTE naquele
-         * mesmo horário.
+         * Transformamos os bloqueios
+         * administrativos em Set.
          *
          * Exemplo:
          *
-         * 07:00 confirmado
+         * [
+         *   "08:00",
+         *   "13:00"
+         * ]
          *
-         * 07:00 ❌
-         * 08:00 ✅
-         * 13:00 ✅
-         * 17:00 ✅
+         * Isso deixa a consulta de cada
+         * horário simples e rápida.
+         */
+        const blockedStartTimes =
+            new Set(
+                scheduleBlockouts.map(
+                    (
+                        blockout,
+                    ) =>
+                        blockout.startTime,
+                ),
+            );
+
+        /*
+         * 3. Um horário fica indisponível
+         * por dois motivos:
+         *
+         * A)
+         * Existe ScheduleBlockout criado
+         * pelo ADMIN para aquela data
+         * e horário.
+         *
+         * B)
+         * Existe Appointment bloqueante
+         * começando exatamente no mesmo
+         * horário.
+         *
+         * Continuamos SEM considerar
+         * sobreposição por duração.
          */
         return possibleSlots.filter(
             (
                 slot,
-            ) =>
-                !this
-                    .conflictService
-                    .hasConflictAtLocalStart({
-                        candidateStartMinutes:
-                            slot
-                                .startMinutes,
+            ) => {
+                /*
+                 * Bloqueio administrativo.
+                 */
+                if (
+                    blockedStartTimes.has(
+                        slot.startTime,
+                    )
+                ) {
+                    return false;
+                }
 
-                        appointments,
-                    }),
+                /*
+                 * Conflito com Appointment.
+                 */
+                const hasAppointmentConflict =
+                    this
+                        .conflictService
+                        .hasConflictAtLocalStart({
+                            candidateStartMinutes:
+                                slot
+                                    .startMinutes,
+
+                            appointments,
+                        });
+
+                return !hasAppointmentConflict;
+            },
         );
     }
 
@@ -291,11 +356,11 @@ export class AppointmentAvailabilityService {
 
         if (
             yearText ===
-                undefined ||
+            undefined ||
             monthText ===
-                undefined ||
+            undefined ||
             dayText ===
-                undefined
+            undefined
         ) {
             throw new Error(
                 "Data inválida. Utilize o formato YYYY-MM-DD.",
@@ -332,13 +397,13 @@ export class AppointmentAvailabilityService {
         const valid =
             date
                 .getUTCFullYear() ===
-                year &&
+            year &&
             date
                 .getUTCMonth() ===
-                month - 1 &&
+            month - 1 &&
             date
                 .getUTCDate() ===
-                day;
+            day;
 
         if (!valid) {
             throw new Error(
@@ -377,9 +442,9 @@ export class AppointmentAvailabilityService {
 
         if (
             hourText ===
-                undefined ||
+            undefined ||
             minuteText ===
-                undefined
+            undefined
         ) {
             throw new Error(
                 "Horário de configuração inválido.",
@@ -425,7 +490,7 @@ export class AppointmentAvailabilityService {
         const hours =
             Math.floor(
                 totalMinutes /
-                    60,
+                60,
             );
 
         const minutes =

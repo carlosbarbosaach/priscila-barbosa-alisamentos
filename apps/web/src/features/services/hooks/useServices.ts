@@ -1,9 +1,12 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { getServices } from "../services.api";
+import {
+    useQuery,
+} from "@tanstack/react-query";
 
-
+import {
+    getServices,
+} from "../services.api";
 
 export const servicesQueryKey = [
     "admin",
@@ -12,7 +15,10 @@ export const servicesQueryKey = [
 
 export function useServices() {
     return useQuery({
-        queryKey: servicesQueryKey,
-        queryFn: getServices,
+        queryKey:
+            servicesQueryKey,
+
+        queryFn:
+            getServices,
     });
 }

@@ -49,6 +49,20 @@ export type AdminAppointmentParams =
  * =================================
  * RECUSAR AGENDAMENTO
  * =================================
+ *
+ * blockSlot:
+ *
+ * false
+ * ↓
+ * recusa o Appointment
+ * e libera o horário.
+ *
+ * true
+ * ↓
+ * recusa o Appointment
+ * e cria ScheduleBlockout.
+ *
+ * O padrão é false.
  */
 export const rejectAdminAppointmentSchema =
   z.object({
@@ -63,6 +77,14 @@ export const rejectAdminAppointmentSchema =
         .max(
           500,
           "O motivo da recusa deve possuir no máximo 500 caracteres.",
+        ),
+
+    blockSlot:
+      z
+        .boolean()
+        .optional()
+        .default(
+          false,
         ),
   });
 
