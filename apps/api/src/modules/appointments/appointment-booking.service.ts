@@ -22,6 +22,10 @@ import {
   ScheduleBlockoutRepository,
 } from "./schedule-blockout.repository.js";
 
+import {
+  whatsappNotificationService,
+} from "../whatsapp/whatsapp.factory.js";
+
 type CreateAppointmentInput = {
   /*
    * Estes dois valores serão resolvidos
@@ -30,16 +34,66 @@ type CreateAppointmentInput = {
    * O frontend CLIENT não poderá escolher
    * salonId ou clientId livremente.
    */
-  salonId: string;
-  clientId: string;
+  salonId:
+    string;
+
+  clientId:
+    string;
 
   /*
    * Valores escolhidos pela cliente.
    */
-  serviceId: string;
-  dateKey: string;
-  startTime: string;
+  serviceId:
+    string;
+
+  dateKey:
+    string;
+
+  startTime:
+    string;
 };
+
+/*
+ * =================================
+ * FORMATAÇÃO
+ * =================================
+ *
+ * Converte:
+ *
+ * 2026-08-22
+ *
+ * para:
+ *
+ * 22/08/2026
+ *
+ * Não criamos Date porque dateKey
+ * já representa uma data local do
+ * salão e não precisamos introduzir
+ * conversão de timezone aqui.
+ */
+function formatDateKeyForNotification(
+  dateKey:
+    string,
+) {
+  const [
+    year,
+    month,
+    day,
+  ] =
+    dateKey.split(
+      "-",
+    );
+
+  if (
+    !year ||
+    !month ||
+    !day
+  ) {
+    return dateKey;
+  }
+
+  return `${day}/${month}/${year}`;
+}
 
 /*
  * Erro específico para conseguirmos
@@ -86,7 +140,8 @@ export class AppointmentBookingService {
   ) {}
 
   async create(
-    input: CreateAppointmentInput,
+    input:
+      CreateAppointmentInput,
   ): Promise<AppointmentEntity> {
     /*
      * =================================
@@ -104,7 +159,7 @@ export class AppointmentBookingService {
      * - timezone;
      * - fases;
      * - occupancy snapshot;
-     * - preço padrão/especial;
+     * - preço padrão/especial/promoção;
      * - snapshots históricos;
      * - PENDING_APPROVAL.
      *
@@ -149,9 +204,6 @@ export class AppointmentBookingService {
      * =================================
      * 3. TRANSACTION DO DIA
      * =================================
-     *
-     * Entramos no corredor protegido
-     * daquele salão + daquele dia.
      */
     await this.dayTransactionService
       .run(
@@ -171,10 +223,6 @@ export class AppointmentBookingService {
            * =================================
            * 4. AGENDAMENTOS EXISTENTES
            * =================================
-           *
-           * Esta consulta acontece dentro
-           * da MESMA Transaction que leu
-           * o appointmentDayLock.
            */
           const appointments =
             await this
@@ -192,19 +240,6 @@ export class AppointmentBookingService {
            * =================================
            * 5. BLOQUEIO ADMINISTRATIVO
            * =================================
-           *
-           * Agora também verificamos,
-           * dentro da mesma Transaction,
-           * se o ADMIN fechou exatamente
-           * aquela data + horário.
-           *
-           * Exemplo:
-           *
-           * 2026-08-21
-           * 13:00
-           *
-           * Se existir ScheduleBlockout,
-           * a reserva NÃO pode continuar.
            */
           const scheduleBlockout =
             await this
@@ -220,14 +255,13 @@ export class AppointmentBookingService {
                 input.startTime,
               );
 
-          if (scheduleBlockout) {
+          if (
+            scheduleBlockout
+          ) {
             /*
              * Não informamos para a
              * CLIENTE que se trata de
              * um bloqueio administrativo.
-             *
-             * Para ela o horário apenas
-             * não está mais disponível.
              */
             throw new AppointmentSlotUnavailableError();
           }
@@ -236,46 +270,22 @@ export class AppointmentBookingService {
            * =================================
            * 6. CONFLITO COM APPOINTMENT
            * =================================
-           *
-           * Não confiamos somente na
-           * disponibilidade calculada
-           * antes da Transaction.
-           *
-           * Essa é a proteção real contra:
-           *
-           * Cliente A vê 13:00 livre
-           * Cliente B vê 13:00 livre
-           *
-           * e ambas tentam reservar juntas.
-           *
-           * Apenas os estados bloqueantes
-           * são considerados:
-           *
-           * PENDING_APPROVAL
-           * CONFIRMED
-           * IN_PROGRESS
-           *
-           * REJECTED
-           * CANCELLED
-           * COMPLETED
-           *
-           * não bloqueiam.
            */
           const hasConflict =
             this.conflictService
               .hasPreparedAppointmentConflict(
                 preparedAppointment,
+
                 appointments,
               );
 
-          if (hasConflict) {
+          if (
+            hasConflict
+          ) {
             /*
              * O throw aborta a Transaction.
              *
-             * Portanto:
-             *
              * Appointment NÃO é criado.
-             * Lock NÃO é atualizado.
              */
             throw new AppointmentSlotUnavailableError();
           }
@@ -285,24 +295,15 @@ export class AppointmentBookingService {
            * 7. CRIAÇÃO
            * =================================
            *
-           * Nenhum bloqueio administrativo
-           * e nenhum Appointment conflitante
-           * foram encontrados.
-           *
-           * Registramos a criação dentro
-           * da Transaction.
-           *
-           * Ainda não existe commit neste
-           * momento.
-           *
-           * O commit será feito
-           * atomicamente pelo Firestore
-           * junto com o lock do dia.
+           * O Appointment é registrado
+           * dentro da Transaction.
            */
           this.appointmentRepository
             .createInTransaction(
               transaction,
+
               appointmentId,
+
               preparedAppointment,
             );
         },
@@ -310,11 +311,59 @@ export class AppointmentBookingService {
 
     /*
      * =================================
-     * 8. RETORNO
+     * 8. WHATSAPP — NOVA SOLICITAÇÃO
      * =================================
      *
-     * Só chegamos aqui se a Transaction
-     * inteira tiver sido concluída.
+     * MUITO IMPORTANTE:
+     *
+     * só chegamos aqui depois que a
+     * Transaction foi concluída.
+     *
+     * Portanto o Appointment já está
+     * persistido no Firestore.
+     *
+     * Se:
+     *
+     * - WhatsApp estiver desativado;
+     * - Meta estiver indisponível;
+     * - token estiver inválido;
+     * - template falhar;
+     *
+     * o agendamento NÃO será perdido.
+     *
+     * WhatsAppNotificationService
+     * transforma essas situações em:
+     *
+     * SENT
+     * SKIPPED
+     * FAILED
+     *
+     * sem lançar erro para este fluxo.
+     */
+    await whatsappNotificationService
+      .notifyAppointmentRequested({
+        clientName:
+          preparedAppointment
+            .clientNameSnapshot,
+
+        serviceName:
+          preparedAppointment
+            .serviceNameSnapshot,
+
+        date:
+          formatDateKeyForNotification(
+            preparedAppointment
+              .dateKey,
+          ),
+
+        time:
+          input.startTime,
+      });
+
+    /*
+     * =================================
+     * 9. RETORNO
+     * =================================
      *
      * Podemos representar o Appointment
      * recém-criado sem uma segunda
